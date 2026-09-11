@@ -1,0 +1,30 @@
+# Secrets
+.env
+certs/*.key
+certs/*.pem
+
+# Runtime data
+data/downloads/*
+data/staging/*
+data/archive/*
+data/output/*
+!data/**/.gitkeep
+
+# .NET
+bin/
+obj/
+*.user
+
+# Node
+node_modules/
+dist/
+.vite/
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+
+# OS
+Thumbs.db
+.DS_Store
