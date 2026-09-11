@@ -208,7 +208,7 @@ before `DISTINCT` and would otherwise truncate the wrong set.
 data uses. Both backends return the same field names, so nothing above the
 mapping module cares, but do not assume the mock format when reading real rows.
 
-**A task is finished when `FinishedAt` is set, not when its state looks
+**A task is finished when `finished` is true, not when its state looks
 terminal.** The runner sets ManualReview or Completed on its summary step, but
 TaskService still has the Excel export to add afterwards. The SSE stream closed
 on state alone at first and dropped that last step from the live view, while the
@@ -259,9 +259,19 @@ Undoing this would spend thousands of tokens per step.
 runs them one at a time. Two concurrent runs move each other's files and fail
 with "not in staging".
 
-**The two modes are expected to disagree.** Scripted sends quality_002.xlsx to
-manual review because it has no supplier code; the agent looks the supplier up by
-name and archives it. That 2/2 versus 3/1 split is the demo's point, not a bug.
+**The two modes are expected to disagree, and the demo turns on how.**
+quality_002.xlsx carries a vendor name but no supplier code. Scripted always
+sends it to manual review. What the agent does depends on whether the name
+resolves, which `scripts/scenario.py` switches by enabling a second ACME vendor:
+
+| | scripted | agent |
+|---|---|---|
+| unique (default) | manual review, no code | archived as V00555 |
+| ambiguous | manual review, no code | manual review, two candidates named |
+
+Both agent outcomes are correct. It recovers when the data supports a decision
+and declines when it does not, and the prompt forbids picking a row out of an
+ambiguous result. Reset to `unique` after demonstrating the ambiguous case.
 
 **The browser cannot resolve Docker service names.** Frontend code always calls
 relative `/api/...` paths. nginx proxies them to `agent-api:8080`, so every

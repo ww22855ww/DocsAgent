@@ -13,7 +13,6 @@ import urllib.error
 import urllib.request
 
 BASE = "http://localhost:5000/api/tasks"
-TERMINAL = {"Completed", "ManualReview", "Failed"}
 
 
 def post(url: str, payload: dict) -> dict:
@@ -55,7 +54,9 @@ def main() -> int:
                 print(f"       {step['detail'][:200]}")
         seen = len(task["steps"])
 
-        if task["state"] in TERMINAL:
+        # Wait on `finished`, not on the state: the runner sets a terminal
+        # state on its summary step while the Excel export is still to come.
+        if task.get("finished"):
             break
         time.sleep(2)
 
@@ -74,6 +75,7 @@ def main() -> int:
             print(f"      reason: {d['reviewReason']}")
 
     return 0 if task.get("state") in ("Completed", "ManualReview") else 1
+
 
 
 if __name__ == "__main__":

@@ -31,6 +31,10 @@ public sealed class TasksController(TaskService tasks) : ControllerBase
             task.Prompt,
             task.Mode,
             state = task.State.ToString(),
+            // A terminal-looking state is not the end: the runner sets it on its
+            // summary step and TaskService still has the Excel export to add.
+            // Poll this, not the state, to know the trace is complete.
+            finished = task.FinishedAt is not null,
             task.Summary,
             task.Error,
             durationMs = task.DurationMs,

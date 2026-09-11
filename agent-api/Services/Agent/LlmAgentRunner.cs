@@ -38,17 +38,22 @@ public sealed class LlmAgentRunner(
         4. For each classified document:
            - If needs_manual_review is true, call notify_manual_review with the
              reason and move on to the next document.
-           - Otherwise resolve the supplier with search_supplier, then call
-             archive_record with just the filename. The classification and the
-             mapping are attached for you; you do not need to repeat them.
+           - Otherwise resolve the supplier with search_supplier. If the document
+             also has a part_no, call search_part for it as well.
+           - Then call archive_record with just the filename. The classification
+             and the mapping are attached for you; do not repeat them.
 
         Handling a supplier you cannot resolve directly:
         - With a supplier_code, search by code.
         - With no code but a supplier_name, search by name instead. Do not give up
           on a document just because the code is missing.
         - If the search returns match "ambiguous" or "not_found", the mapping is
-          not settled: send the document to manual review with that as the reason.
-        - Only a match of "unique" settles a mapping.
+          not settled: send the document to manual review, saying in the reason
+          how many candidates were found and what you searched for.
+        - Only a match of "unique" settles a mapping. Never pick one row out of
+          an ambiguous result; deciding between them is the reviewer's job.
+        - A part lookup that does not resolve is not a blocker. Archive the
+          document anyway; only the supplier has to be settled.
 
         Rules:
         - Every document must end up either archived or in manual review.
