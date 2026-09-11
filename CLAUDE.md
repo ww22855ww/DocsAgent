@@ -151,7 +151,20 @@ empty `content` string and no error. Hence `LLM_MAX_TOKENS_TOOL=1000` and
 **Native tool calling and `json_schema` both work** on that endpoint despite the
 gateway in the path, so use the OpenAI `tools` array and
 `response_format: {type: "json_schema"}` directly. There is no need for
-prompt-based tool parsing. Typical decision latency is 3 to 4 seconds.
+prompt-based tool parsing. Tool selection runs 1 to 2 seconds; classification
+runs 3 to 7 seconds.
+
+**Self-reported confidence is not a signal.** gemma4 returns 1.0 on nearly every
+classification, including ones it gets wrong. Manual-review routing must be
+decided by rules (missing category, missing supplier, missing document number)
+with the confidence threshold as the last check, never the first. See
+`ClassificationResult.NeedsManualReview`.
+
+**The classifier distinguishes documents by structure, not subject.** Free-form
+prose about inspections and defects was confidently labelled QualityReport until
+the prompt was changed to say that a business category requires labelled fields
+and its own reference number. If a new document type misclassifies, fix that
+distinction in the prompt rather than adding a confidence rule.
 
 **No company CA import is needed.** TLS to all three internal services succeeds
 from both the .NET and Python containers using the stock trust store. Never

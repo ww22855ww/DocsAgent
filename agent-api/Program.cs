@@ -1,4 +1,6 @@
 using AgentApi.Models;
+using AgentApi.Services.Classification;
+using AgentApi.Services.Llm;
 using Npgsql;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -6,8 +8,13 @@ var builder = WebApplication.CreateBuilder(args);
 var options = AppOptions.FromConfiguration(builder.Configuration);
 builder.Services.AddSingleton(options);
 builder.Services.AddHttpClient();
+builder.Services.AddControllers();
+builder.Services.AddSingleton<LlmClient>();
+builder.Services.AddSingleton<DocumentClassifier>();
 
 var app = builder.Build();
+
+app.MapControllers();
 
 // Liveness: does not touch dependencies.
 // "/health" is used by the container healthcheck; "/api/health" is what the
@@ -17,8 +24,8 @@ var liveness = (AppOptions o) => Results.Json(new
     status = "ok",
     app = "Agent API",
     agentMode = o.AgentMode,
-    llmProvider = o.LlmProvider,
-    llmModel = o.LlmModel,
+    llmProvider = o.Primary.Name,
+    llmModel = o.Primary.Model,
 });
 app.MapGet("/health", liveness);
 app.MapGet("/api/health", liveness);
