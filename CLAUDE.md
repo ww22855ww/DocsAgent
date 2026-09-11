@@ -51,7 +51,23 @@ curl -s http://localhost:8000/health        # mcp-worker
 docker exec adp-postgres psql -U agent -d agentdemo -c "select * from mock_suppliers"
 ```
 
-Exercise an MCP tool directly (note `Accept` must list both content types):
+Exercise any MCP tool through the probe harness:
+
+```bash
+python scripts/probe_mcp.py list
+python scripts/probe_mcp.py search_supplier '{"supplier_name":"ACME"}'
+python scripts/probe_mcp.py download_documents '{"date":"2026-09-11","department":"SCM"}'
+```
+
+To exercise the real Oracle backend without touching `.env`, override the mode
+for one process. A shell variable will not work, because `env_file` wins over
+the shell for values it defines:
+
+```bash
+docker exec -e DBQUERY_MODE=real adp-mcp-worker python -c "from tools import mapping; print(mapping.search_supplier(supplier_code='2400401'))"
+```
+
+Or drive the endpoint by hand (note `Accept` must list both content types):
 
 ```bash
 curl -s -X POST http://localhost:8000/mcp \
@@ -153,6 +169,16 @@ only, so the check fails with connection refused while the service is fine.
 
 **Postgres 18 moved its data directory** to `/var/lib/postgresql`. The volume
 mount uses that path; the older `/var/lib/postgresql/data` silently loses data.
+
+**The Oracle item master has one row per inventory organization.** A plain
+`SELECT` on a part number returns the same part ten times and the lookup reports
+`ambiguous` when the answer is really unique. The real part query uses `DISTINCT`
+inside a subquery, with the row cap outside it, because Oracle applies `rownum`
+before `DISTINCT` and would otherwise truncate the wrong set.
+
+**Real supplier codes are numeric** (`2400401`), not the `V00123` shape the mock
+data uses. Both backends return the same field names, so nothing above the
+mapping module cares, but do not assume the mock format when reading real rows.
 
 **The browser cannot resolve Docker service names.** Frontend code always calls
 relative `/api/...` paths. nginx proxies them to `agent-api:8080`, so every
