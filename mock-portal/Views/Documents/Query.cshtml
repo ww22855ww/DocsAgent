@@ -1,0 +1,79 @@
+@model MockPortal.Models.QueryViewModel
+@{
+    ViewData["Title"] = "Document Query";
+    Layout = "_Layout";
+}
+<h1>Document Query</h1>
+
+<form id="query-form" method="post" action="/Documents/Query" class="query-panel">
+    @Html.AntiForgeryToken()
+    <div class="field">
+        <label for="queryDate">Date</label>
+        <input id="queryDate" name="QueryDate" type="date" value="@Model.QueryDate" />
+    </div>
+    <div class="field">
+        <label for="department">Department</label>
+        <select id="department" name="Department">
+            @foreach (var d in MockPortal.Models.QueryViewModel.Departments)
+            {
+                <option value="@d" selected="@(d == Model.Department)">@d</option>
+            }
+        </select>
+    </div>
+    <div class="field">
+        <label for="documentType">Document Type</label>
+        <select id="documentType" name="DocumentType">
+            @foreach (var t in MockPortal.Models.QueryViewModel.DocumentTypes)
+            {
+                <option value="@t" selected="@(t == Model.DocumentType)">@t</option>
+            }
+        </select>
+    </div>
+    <button id="btn-search" type="submit">Search</button>
+</form>
+
+@if (Model.Searched)
+{
+    <div id="result-summary" class="summary" data-count="@Model.Results.Count">
+        @Model.Results.Count document(s) found.
+    </div>
+
+    @if (Model.Results.Count > 0)
+    {
+        <table id="result-table">
+            <thead>
+                <tr>
+                    <th>Document No</th>
+                    <th>Type</th>
+                    <th>Vendor</th>
+                    <th>Issued</th>
+                    <th>File</th>
+                    <th>Size</th>
+                    <th></th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var doc in Model.Results)
+                {
+                    <tr class="result-row" data-file="@doc.FileName">
+                        <td>@doc.DocumentNo</td>
+                        <td>@doc.DocumentType</td>
+                        <td>@doc.Vendor</td>
+                        <td>@doc.IssuedOn</td>
+                        <td class="mono">@doc.FileName</td>
+                        <td>@doc.SizeLabel</td>
+                        <td>
+                            <a class="btn-download" data-file="@doc.FileName"
+                               href="/Documents/Download?file=@Uri.EscapeDataString(doc.FileName)"
+                               download>Download</a>
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    }
+    else
+    {
+        <div id="no-results" class="summary">No documents match the selected criteria.</div>
+    }
+}

@@ -1,18 +1,41 @@
+@using MockPortal.Infrastructure
+@{
+    var user = Context.Session.GetString(RequireLoginAttribute.SessionKey);
+    var signedIn = !string.IsNullOrEmpty(user);
+}
 <!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>@ViewData["Title"] - Mock Portal</title>
-    <style>
-        body { font-family: "Segoe UI", system-ui, sans-serif; margin: 0; background: #f4f5f7; color: #1f2430; }
-        header { background: #26334d; color: #fff; padding: 14px 22px; font-weight: 600; }
-        main { padding: 28px 22px; }
-        code { background: #e6e8ec; padding: 2px 6px; border-radius: 4px; }
-    </style>
+    <title>@ViewData["Title"] · ECS Document Portal</title>
+    <link rel="stylesheet" href="~/css/portal.css" />
 </head>
 <body>
-    <header>ECS Internal Document Portal</header>
-    <main>@RenderBody()</main>
+    <header id="topbar">
+        <span class="brand">ECS Internal Document Portal</span>
+        @if (signedIn)
+        {
+            <span class="user">
+                <span id="current-user">@user</span>
+                <a id="link-logout" href="/Account/Logout">Sign out</a>
+            </span>
+        }
+    </header>
+
+    <div class="shell">
+        @if (signedIn)
+        {
+            <nav id="sidebar">
+                <div class="nav-group">Supply Chain</div>
+                <a id="menu-documents" class="nav-item active" href="/Documents/Query">Document Query</a>
+                <a id="menu-suppliers" class="nav-item disabled" href="#">Supplier Master</a>
+                <a id="menu-po" class="nav-item disabled" href="#">Purchase Orders</a>
+                <div class="nav-group">Quality</div>
+                <a id="menu-iqc" class="nav-item disabled" href="#">IQC Records</a>
+            </nav>
+        }
+        <main id="content">@RenderBody()</main>
+    </div>
 </body>
 </html>

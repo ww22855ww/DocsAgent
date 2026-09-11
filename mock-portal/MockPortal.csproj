@@ -5,4 +5,11 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <RootNamespace>MockPortal</RootNamespace>
   </PropertyGroup>
+
+  <ItemGroup>
+    <!-- The demo documents are served from disk at runtime, so they must land
+         in the publish output alongside the app. -->
+    <Content Include="MockData\**\*" CopyToOutputDirectory="PreserveNewest"
+             CopyToPublishDirectory="PreserveNewest" />
+  </ItemGroup>
 </Project>

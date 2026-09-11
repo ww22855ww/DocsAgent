@@ -1,0 +1,25 @@
+@{
+    ViewData["Title"] = "Sign in";
+    Layout = "_Layout";
+}
+<div class="login-card">
+    <h1>Sign in</h1>
+    <p class="hint">Use your portal account to continue.</p>
+
+    @if (ViewData["Error"] is string err)
+    {
+        <div id="login-error" class="error">@err</div>
+    }
+
+    <form id="login-form" method="post" action="/Account/Login">
+        @Html.AntiForgeryToken()
+        <label for="username">Username</label>
+        <input id="username" name="username" type="text" autocomplete="username"
+               value="@(ViewData["Username"] as string ?? "")" required />
+
+        <label for="password">Password</label>
+        <input id="password" name="password" type="password" autocomplete="current-password" required />
+
+        <button id="btn-login" type="submit">Sign in</button>
+    </form>
+</div>
