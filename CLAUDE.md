@@ -208,6 +208,18 @@ before `DISTINCT` and would otherwise truncate the wrong set.
 data uses. Both backends return the same field names, so nothing above the
 mapping module cares, but do not assume the mock format when reading real rows.
 
+**A task is finished when `FinishedAt` is set, not when its state looks
+terminal.** The runner sets ManualReview or Completed on its summary step, but
+TaskService still has the Excel export to add afterwards. The SSE stream closed
+on state alone at first and dropped that last step from the live view, while the
+task detail endpoint showed it. Any new end-of-task work inherits this.
+
+**The SSE route is `/api/tasks/stream/{id}`, not `/api/tasks/{id}/stream`.** The
+flat shape keeps it under one nginx location with `proxy_buffering off`; a
+buffered proxy delivers the whole run in one burst when it ends, which looks
+exactly like a broken stream. The server replays the trace from step 1 on every
+connect, so the client keys steps by index rather than appending.
+
 **The schema lives in `db/init.sql`, not in EF Core migrations.** That file runs
 on first boot through the Postgres entrypoint and every statement is
 `IF NOT EXISTS`, so it can be replayed against a live database:

@@ -1,63 +1,107 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
+import { fetchHealth, startTask, streamTask } from './api'
+import ResultPanel from './components/ResultPanel'
+import TaskForm from './components/TaskForm'
+import Timeline from './components/Timeline'
+import type { Step, TaskFinal } from './types'
 
-type Health = Record<string, unknown>
+const WAITING_LABEL: Record<string, string> = {
+  WaitingLlm: 'Waiting for the model…',
+  WaitingTool: 'Running a tool…',
+  Running: 'Working…',
+  Created: 'Starting…',
+}
 
-/**
- * Phase 0 console. Confirms the browser -> nginx -> agent-api path works.
- * Phase 6 replaces this with the task form, execution trace and summary.
- */
 export default function App() {
-  const [health, setHealth] = useState<Health | null>(null)
-  const [ready, setReady] = useState<Health | null>(null)
+  const [prompt, setPrompt] = useState('處理今天 SCM 文件')
+  const [mode, setMode] = useState('llm')
+
+  const [steps, setSteps] = useState<Step[]>([])
+  const [state, setState] = useState<string | null>(null)
+  const [final, setFinal] = useState<TaskFinal | null>(null)
   const [error, setError] = useState<string | null>(null)
+  const [running, setRunning] = useState(false)
+  const [health, setHealth] = useState<Record<string, string> | null>(null)
+
+  const closeStream = useRef<(() => void) | null>(null)
 
   useEffect(() => {
-    const load = async () => {
-      try {
-        const h = await fetch('/api/health')
-        setHealth(await h.json())
-        const r = await fetch('/api/ready')
-        setReady(await r.json())
-        setError(null)
-      } catch (e) {
-        setError(e instanceof Error ? e.message : String(e))
-      }
-    }
-    load()
-    const id = setInterval(load, 10_000)
-    return () => clearInterval(id)
+    fetchHealth().then(setHealth).catch(() => setHealth(null))
+    return () => closeStream.current?.()
   }, [])
+
+  const execute = async () => {
+    closeStream.current?.()
+    setSteps([])
+    setFinal(null)
+    setError(null)
+    setState('Created')
+    setRunning(true)
+
+    try {
+      const task = await startTask(prompt, mode)
+
+      closeStream.current = streamTask(task.id, {
+        // Keyed by index: EventSource replays from step 1 after a reconnect, so
+        // appending blindly would duplicate the whole trace.
+        onStep: step => setSteps(prev => {
+          const next = prev.filter(s => s.index !== step.index)
+          next.push(step)
+          next.sort((a, b) => a.index - b.index)
+          return next
+        }),
+        onState: setState,
+        onDone: result => {
+          setFinal(result)
+          setState(result.state)
+          setRunning(false)
+        },
+        onError: message => {
+          setError(message)
+          setRunning(false)
+        },
+      })
+    } catch (e) {
+      setError(e instanceof Error ? e.message : String(e))
+      setRunning(false)
+    }
+  }
 
   return (
     <main>
-      <h1>Agentic Document Processor</h1>
-      <p className="sub">Phase 0 — bootstrap console</p>
+      <header className="page-head">
+        <div>
+          <h1>Agentic Document Processor</h1>
+          <p className="sub">
+            Natural-language task, browser automation, classification and mapping,
+            end to end.
+          </p>
+        </div>
+        {health && (
+          <span className="model-badge" title={`provider: ${health.llmProvider}`}>
+            {health.llmModel}
+          </span>
+        )}
+      </header>
 
-      {error && <div className="card bad">Cannot reach agent-api: {error}</div>}
+      <TaskForm
+        prompt={prompt}
+        mode={mode}
+        running={running}
+        onPromptChange={setPrompt}
+        onModeChange={setMode}
+        onSubmit={execute}
+      />
 
-      <div className="card">
-        <strong>Agent API</strong>
-        {health
-          ? Object.entries(health).map(([k, v]) => (
-              <div className="row" key={k}>
-                <span className="k">{k}</span>
-                <span className="v">{String(v)}</span>
-              </div>
-            ))
-          : <div className="row"><span className="k">loading…</span></div>}
-      </div>
+      {error && <div className="card failure"><p className="summary-text">{error}</p></div>}
 
-      <div className="card">
-        <strong>Dependencies</strong>
-        {ready && typeof ready.checks === 'object' && ready.checks !== null
-          ? Object.entries(ready.checks as Record<string, string>).map(([k, v]) => (
-              <div className="row" key={k}>
-                <span className="k">{k}</span>
-                <span className={`v ${v.startsWith('ok') ? 'ok' : 'bad'}`}>{v}</span>
-              </div>
-            ))
-          : <div className="row"><span className="k">loading…</span></div>}
-      </div>
+      <Timeline
+        steps={steps}
+        running={running}
+        waitingLabel={state ? WAITING_LABEL[state] ?? null : null}
+      />
+
+      {final && <ResultPanel final={final} />}
     </main>
   )
 }
