@@ -20,6 +20,12 @@ public sealed class AgentContext(AgentTask task, Action<TaskStep>? onStep = null
     public AgentTask Task => task;
     public IReadOnlyCollection<string> ExtractedFilenames => _extracted.Keys;
 
+    /// <summary>Every classification produced during this task, for the Phase 5 record.</summary>
+    public List<ClassificationRecord> Classifications { get; } = [];
+
+    /// <summary>Every supplier and part lookup attempted, whether or not it resolved.</summary>
+    public List<MappingRecord> Mappings { get; } = [];
+
     public TaskStep AddStep(
         string kind,
         string title,

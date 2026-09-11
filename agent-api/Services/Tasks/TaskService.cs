@@ -5,15 +5,19 @@ using AgentApi.Services.Agent;
 namespace AgentApi.Services.Tasks;
 
 /// <summary>
-/// Creates tasks, runs them in the background, and keeps their traces.
+/// Creates tasks, runs them in the background, keeps their traces in memory and
+/// writes the durable record when they finish.
 ///
-/// State is in memory: a demo restarts often and nothing here needs to outlive
-/// the process. The durable record of what happened is in Postgres, written by
-/// archive_record and notify_manual_review.
+/// The live view reads from memory so the UI stays responsive; Postgres holds
+/// the record afterwards. mcp-worker writes archives and manual_reviews as it
+/// goes, this writes the task, its trace, and the classification and mapping
+/// history.
 /// </summary>
 public sealed class TaskService(
     ScriptedAgentRunner scripted,
     LlmAgentRunner llmRunner,
+    ToolRegistry tools,
+    TaskRepository repository,
     AppOptions options,
     ILogger<TaskService> log)
 {
@@ -50,6 +54,9 @@ public sealed class TaskService(
         _tasks[task.Id] = task;
         log.LogInformation("task {Id} created in {Mode} mode: {Prompt}", task.Id, mode, task.Prompt);
 
+        // Insert the row up front so a run that dies mid-flight still leaves a
+        // record that it was attempted.
+        _ = repository.CreateAsync(task);
         _ = Task.Run(() => RunAsync(task));
         return task;
     }
@@ -72,6 +79,7 @@ public sealed class TaskService(
             try
             {
                 await runner.RunAsync(context, cts.Token);
+                await WriteWorkbookAsync(context, cts.Token);
             }
             finally
             {
@@ -95,6 +103,39 @@ public sealed class TaskService(
         finally
         {
             task.FinishedAt = DateTimeOffset.UtcNow;
+            await repository.SaveAsync(context, CancellationToken.None);
+        }
+    }
+
+    /// <summary>
+    /// Export the workbook once the run is done.
+    ///
+    /// This is reporting, not a decision, so it runs here rather than being
+    /// offered to the agent: the agent cannot skip it, call it too early, or
+    /// call it twice. A failure here is recorded but does not fail the task,
+    /// since the database already holds the result.
+    /// </summary>
+    private async Task WriteWorkbookAsync(AgentContext context, CancellationToken ct)
+    {
+        var task = context.Task;
+        if (task.Documents.Count == 0) return;
+
+        try
+        {
+            var result = await tools.ExecuteAsync(context, "write_excel",
+                new System.Text.Json.Nodes.JsonObject { ["task_id"] = task.Id }, ct);
+
+            var failed = result["status"]?.GetValue<string>() == "error";
+            context.AddStep("tool", "Writing result.xlsx",
+                detail: failed ? result["error"]?.GetValue<string>() : result["path"]?.GetValue<string>(),
+                toolName: "write_excel",
+                result: result.DeepClone(),
+                success: !failed);
+        }
+        catch (Exception ex)
+        {
+            log.LogError(ex, "excel export failed for {Id}", task.Id);
+            context.AddStep("error", "Could not write result.xlsx", ex.Message, success: false);
         }
     }
 }

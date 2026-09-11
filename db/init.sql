@@ -71,3 +71,95 @@ CREATE TABLE IF NOT EXISTS manual_reviews (
 );
 
 CREATE INDEX IF NOT EXISTS idx_manual_reviews_task ON manual_reviews (task_id);
+
+-- ---------------------------------------------------------------------------
+-- Phase 5: the full task record.
+--
+-- agent-api owns these tables; mcp-worker owns archives and manual_reviews
+-- above. The split follows who produces the data, not who happens to be
+-- connected.
+--
+-- The schema lives here rather than in EF Core migrations: this file is already
+-- the single source of truth, it runs on first boot via docker-entrypoint, and
+-- every statement is IF NOT EXISTS so it can be replayed against a live
+-- database. agent-api maps onto it and never creates or migrates it.
+-- ---------------------------------------------------------------------------
+
+CREATE TABLE IF NOT EXISTS tasks (
+    id          TEXT PRIMARY KEY,
+    prompt      TEXT NOT NULL,
+    mode        TEXT NOT NULL,
+    state       TEXT NOT NULL,
+    summary     TEXT,
+    error       TEXT,
+    started_at  TIMESTAMPTZ NOT NULL,
+    finished_at TIMESTAMPTZ,
+    duration_ms INTEGER NOT NULL DEFAULT 0
+);
+
+CREATE TABLE IF NOT EXISTS task_steps (
+    id          BIGSERIAL PRIMARY KEY,
+    task_id     TEXT NOT NULL REFERENCES tasks(id) ON DELETE CASCADE,
+    step_index  INTEGER NOT NULL,
+    kind        TEXT NOT NULL,
+    title       TEXT NOT NULL,
+    detail      TEXT,
+    thought     TEXT,
+    tool_name   TEXT,
+    arguments   JSONB,
+    result      JSONB,
+    success     BOOLEAN NOT NULL DEFAULT TRUE,
+    duration_ms INTEGER NOT NULL DEFAULT 0,
+    at          TIMESTAMPTZ NOT NULL,
+    UNIQUE (task_id, step_index)
+);
+
+CREATE TABLE IF NOT EXISTS documents (
+    id            BIGSERIAL PRIMARY KEY,
+    task_id       TEXT NOT NULL REFERENCES tasks(id) ON DELETE CASCADE,
+    filename      TEXT NOT NULL,
+    status        TEXT NOT NULL,
+    category      TEXT,
+    supplier_code TEXT,
+    supplier_name TEXT,
+    part_no       TEXT,
+    document_no   TEXT,
+    review_reason TEXT,
+    notified      BOOLEAN NOT NULL DEFAULT FALSE,
+    UNIQUE (task_id, filename)
+);
+
+CREATE TABLE IF NOT EXISTS document_classifications (
+    id                  BIGSERIAL PRIMARY KEY,
+    task_id             TEXT NOT NULL REFERENCES tasks(id) ON DELETE CASCADE,
+    filename            TEXT NOT NULL,
+    category            TEXT NOT NULL,
+    confidence          NUMERIC(4, 3),
+    supplier_code       TEXT,
+    supplier_name       TEXT,
+    part_no             TEXT,
+    document_no         TEXT,
+    provider            TEXT,
+    model               TEXT,
+    latency_ms          INTEGER NOT NULL DEFAULT 0,
+    needs_manual_review BOOLEAN NOT NULL DEFAULT FALSE,
+    review_reason       TEXT,
+    created_at          TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+CREATE TABLE IF NOT EXISTS document_mappings (
+    id         BIGSERIAL PRIMARY KEY,
+    task_id    TEXT NOT NULL REFERENCES tasks(id) ON DELETE CASCADE,
+    filename   TEXT,
+    kind       TEXT NOT NULL,          -- supplier | part
+    query      JSONB,
+    match      TEXT NOT NULL,          -- unique | ambiguous | not_found
+    source     TEXT,                   -- mock | oracle_ebs
+    resolved   JSONB,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+CREATE INDEX IF NOT EXISTS idx_task_steps_task ON task_steps (task_id, step_index);
+CREATE INDEX IF NOT EXISTS idx_documents_task ON documents (task_id);
+CREATE INDEX IF NOT EXISTS idx_classifications_task ON document_classifications (task_id);
+CREATE INDEX IF NOT EXISTS idx_mappings_task ON document_mappings (task_id);

@@ -23,8 +23,12 @@ public sealed class ToolRegistry(
 {
     public const string ClassifyTool = "classify_document";
 
-    /// <summary>Tools the model should never be offered, even if the worker exposes them.</summary>
-    private static readonly HashSet<string> Hidden = ["ping"];
+    /// <summary>
+    /// Tools the model is never offered, even though the worker exposes them.
+    /// write_excel is reporting, not a decision: it runs once after the task
+    /// finishes, so the agent cannot forget it, call it early, or call it twice.
+    /// </summary>
+    private static readonly HashSet<string> Hidden = ["ping", "write_excel"];
 
     public async Task<IReadOnlyList<LlmToolDefinition>> GetDefinitionsAsync(CancellationToken ct)
     {
@@ -82,11 +86,30 @@ public sealed class ToolRegistry(
         {
             case "download_documents": context.RememberDownloads(result); break;
             case "extract_documents": context.RememberExtractions(result); break;
-            case "search_supplier": context.RememberSupplierLookup(result); break;
-            case "search_part": context.RememberPartLookup(result); break;
+            case "search_supplier": context.RememberSupplierLookup(result); RecordMapping(context, "supplier", result); break;
+            case "search_part": context.RememberPartLookup(result); RecordMapping(context, "part", result); break;
         }
 
         return result;
+    }
+
+    /// <summary>
+    /// Keep every lookup, resolved or not. The misses matter: they are the
+    /// evidence for why a document went to manual review.
+    /// </summary>
+    private static void RecordMapping(AgentContext context, string kind, JsonNode? result)
+    {
+        if (result is null) return;
+
+        var first = (result["results"] as JsonArray)?.FirstOrDefault();
+        context.Mappings.Add(new MappingRecord
+        {
+            Kind = kind,
+            Query = result["query"]?.DeepClone(),
+            Match = result["match"]?.GetValue<string>() ?? "unknown",
+            Source = first?["source"]?.GetValue<string>() ?? result["mode"]?.GetValue<string>(),
+            Resolved = result["match"]?.GetValue<string>() == "unique" ? first?.DeepClone() : null,
+        });
     }
 
     /// <summary>
@@ -151,6 +174,22 @@ public sealed class ToolRegistry(
         outcome.PartNo = result.PartNo;
         outcome.DocumentNo = result.DocumentNo;
         outcome.ReviewReason = reason;
+
+        context.Classifications.Add(new ClassificationRecord
+        {
+            Filename = result.Filename,
+            Category = result.Category,
+            Confidence = result.Confidence,
+            SupplierCode = result.SupplierCode,
+            SupplierName = result.SupplierName,
+            PartNo = result.PartNo,
+            DocumentNo = result.DocumentNo,
+            Provider = result.Provider,
+            Model = result.Model,
+            LatencyMs = result.LatencyMs,
+            NeedsManualReview = needsReview,
+            ReviewReason = reason,
+        });
 
         log.LogInformation("classify_document {File} -> {Category} review={Review}",
             filename, result.Category, needsReview);

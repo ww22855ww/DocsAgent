@@ -25,6 +25,7 @@ import config
 from tools import archive as archive_tools
 from tools import browser as browser_tools
 from tools import documents as document_tools
+from tools import excel as excel_tools
 from tools import filesystem as fs_tools
 from tools import mapping as mapping_tools
 from tools import notify as notify_tools
@@ -157,6 +158,20 @@ async def notify_manual_review(
     The recipient is fixed by configuration; you choose only the wording.
     """
     return await _run(notify_tools.notify_manual_review, filename, reason, summary, task_id)
+
+
+@mcp.tool()
+async def write_excel(task_id: str, filename: str = "result.xlsx") -> dict:
+    """Write the result workbook for a finished task into the output directory.
+
+    Args:
+        task_id: The task whose archived documents and manual reviews to report.
+        filename: Output name, must end in .xlsx.
+
+    Reads back what was committed to the database rather than what was reported,
+    so the workbook cannot disagree with the stored record.
+    """
+    return await _run(excel_tools.write_excel, task_id, filename)
 
 
 # ---------------------------------------------------------------------------

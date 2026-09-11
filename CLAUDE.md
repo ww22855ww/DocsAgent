@@ -208,6 +208,29 @@ before `DISTINCT` and would otherwise truncate the wrong set.
 data uses. Both backends return the same field names, so nothing above the
 mapping module cares, but do not assume the mock format when reading real rows.
 
+**The schema lives in `db/init.sql`, not in EF Core migrations.** That file runs
+on first boot through the Postgres entrypoint and every statement is
+`IF NOT EXISTS`, so it can be replayed against a live database:
+
+```bash
+docker exec -i adp-postgres psql -U agent -d agentdemo -v ON_ERROR_STOP=1 < db/init.sql
+```
+
+agent-api maps onto that schema and never creates or migrates it. Add a table by
+editing the SQL and replaying it, then add the EF Core mapping.
+
+**Who writes which table follows who produces the data.** mcp-worker writes
+`archives` and `manual_reviews` as it goes; agent-api writes `tasks`,
+`task_steps`, `documents`, `document_classifications` and `document_mappings`
+once the run finishes. A re-save replaces a task's child rows rather than
+appending, so re-running cannot double a trace.
+
+**`write_excel` is hidden from the model.** Exporting is reporting, not a
+decision, so TaskService calls it once after the runner finishes. That way the
+agent cannot skip it, call it early, or call it twice. It reads back what was
+committed to the database rather than what the agent reported, so the workbook
+and the database cannot disagree.
+
 **The agent must not be asked to carry data it already produced.** archive_record
 takes a classification and a mapping; when the model was asked to supply them it
 passed an empty object and every archive column came out null. ToolRegistry now

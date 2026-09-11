@@ -4,6 +4,7 @@ using AgentApi.Services.Agent;
 using AgentApi.Services.Llm;
 using AgentApi.Services.Mcp;
 using AgentApi.Services.Tasks;
+using Microsoft.EntityFrameworkCore;
 using Npgsql;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -18,7 +19,13 @@ builder.Services.AddSingleton<McpToolClient>();
 builder.Services.AddSingleton<ToolRegistry>();
 builder.Services.AddSingleton<ScriptedAgentRunner>();
 builder.Services.AddSingleton<LlmAgentRunner>();
+builder.Services.AddSingleton<TaskRepository>();
 builder.Services.AddSingleton<TaskService>();
+
+// EF Core maps onto the schema db/init.sql creates. No migrations here: that
+// file is the single source of truth and runs on first boot.
+builder.Services.AddDbContextFactory<TaskDbContext>(o =>
+    o.UseNpgsql(options.PostgresConnectionString));
 
 var app = builder.Build();
 
