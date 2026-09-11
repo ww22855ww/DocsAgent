@@ -1,0 +1,86 @@
+using System.Text.Json.Nodes;
+
+namespace AgentApi.Models;
+
+public enum TaskState
+{
+    Created,
+    Running,
+    WaitingLlm,
+    WaitingTool,
+    ManualReview,
+    Completed,
+    Failed,
+}
+
+/// <summary>One entry in the execution trace. The UI renders these in order.</summary>
+public sealed class TaskStep
+{
+    public required int Index { get; init; }
+    public required string Kind { get; init; }        // agent | tool | classify | summary | error
+    public required string Title { get; init; }
+    public string? Detail { get; init; }
+
+    /// <summary>The model's stated intent before a tool call, when it gave one.</summary>
+    public string? Thought { get; init; }
+
+    public string? ToolName { get; init; }
+    public JsonNode? Arguments { get; init; }
+    public JsonNode? Result { get; init; }
+
+    public bool Success { get; init; } = true;
+    public int DurationMs { get; init; }
+    public DateTimeOffset At { get; init; } = DateTimeOffset.UtcNow;
+}
+
+/// <summary>What happened to one document as it moved through the pipeline.</summary>
+public sealed class DocumentOutcome
+{
+    public required string Filename { get; init; }
+    public string? Category { get; set; }
+    public double? Confidence { get; set; }
+    public string? SupplierCode { get; set; }
+    public string? SupplierName { get; set; }
+    public string? PartNo { get; set; }
+    public string? DocumentNo { get; set; }
+
+    /// <summary>archived | manual_review | pending</summary>
+    public string Status { get; set; } = "pending";
+    public string? ReviewReason { get; set; }
+    public bool Notified { get; set; }
+}
+
+public sealed class AgentTask
+{
+    public required string Id { get; init; }
+    public required string Prompt { get; init; }
+    public required string Mode { get; init; }        // scripted | llm
+
+    public TaskState State { get; set; } = TaskState.Created;
+    public DateTimeOffset StartedAt { get; init; } = DateTimeOffset.UtcNow;
+    public DateTimeOffset? FinishedAt { get; set; }
+
+    public List<TaskStep> Steps { get; } = [];
+    public Dictionary<string, DocumentOutcome> Documents { get; } = [];
+
+    public string? Summary { get; set; }
+    public string? Error { get; set; }
+
+    public int DurationMs => (int)((FinishedAt ?? DateTimeOffset.UtcNow) - StartedAt).TotalMilliseconds;
+
+    public object BuildSummaryCounts()
+    {
+        var docs = Documents.Values.ToList();
+        return new
+        {
+            downloaded = docs.Count,
+            classified = docs.Count(d => d.Category is not null),
+            archived = docs.Count(d => d.Status == "archived"),
+            manualReview = docs.Count(d => d.Status == "manual_review"),
+            notificationsSent = docs.Count(d => d.Notified),
+            byCategory = docs.Where(d => d.Category is not null)
+                             .GroupBy(d => d.Category!)
+                             .ToDictionary(g => g.Key, g => g.Count()),
+        };
+    }
+}

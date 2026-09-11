@@ -1,6 +1,9 @@
 using AgentApi.Models;
 using AgentApi.Services.Classification;
+using AgentApi.Services.Agent;
 using AgentApi.Services.Llm;
+using AgentApi.Services.Mcp;
+using AgentApi.Services.Tasks;
 using Npgsql;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -11,6 +14,11 @@ builder.Services.AddHttpClient();
 builder.Services.AddControllers();
 builder.Services.AddSingleton<LlmClient>();
 builder.Services.AddSingleton<DocumentClassifier>();
+builder.Services.AddSingleton<McpToolClient>();
+builder.Services.AddSingleton<ToolRegistry>();
+builder.Services.AddSingleton<ScriptedAgentRunner>();
+builder.Services.AddSingleton<LlmAgentRunner>();
+builder.Services.AddSingleton<TaskService>();
 
 var app = builder.Build();
 

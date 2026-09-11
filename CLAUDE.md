@@ -51,6 +51,21 @@ curl -s http://localhost:8000/health        # mcp-worker
 docker exec adp-postgres psql -U agent -d agentdemo -c "select * from mock_suppliers"
 ```
 
+Run a full task and watch its trace:
+
+```bash
+python scripts/run_task.py scripted
+python scripts/run_task.py llm "處理今天 SCM 文件"
+```
+
+Reset between runs, or the second run finds staging already emptied by the
+first:
+
+```bash
+find data/staging data/archive data/downloads -type f ! -name '.gitkeep' -delete
+docker exec adp-postgres psql -U agent -d agentdemo -q -c "TRUNCATE archives, manual_reviews RESTART IDENTITY;"
+```
+
 Exercise any MCP tool through the probe harness:
 
 ```bash
@@ -192,6 +207,26 @@ before `DISTINCT` and would otherwise truncate the wrong set.
 **Real supplier codes are numeric** (`2400401`), not the `V00123` shape the mock
 data uses. Both backends return the same field names, so nothing above the
 mapping module cares, but do not assume the mock format when reading real rows.
+
+**The agent must not be asked to carry data it already produced.** archive_record
+takes a classification and a mapping; when the model was asked to supply them it
+passed an empty object and every archive column came out null. ToolRegistry now
+fills those arguments from AgentContext for both runners, so what gets written is
+decided by code. Apply the same rule to any new tool: the agent chooses when to
+call it, never what gets recorded.
+
+**Document text never goes back to the model.** extract_documents returns every
+document body; AgentContext caches it and returns only filenames and sizes to the
+agent. classify_document takes a filename and reads the text from that cache.
+Undoing this would spend thousands of tokens per step.
+
+**Tasks are serialised.** All tasks share one staging directory, so TaskService
+runs them one at a time. Two concurrent runs move each other's files and fail
+with "not in staging".
+
+**The two modes are expected to disagree.** Scripted sends quality_002.xlsx to
+manual review because it has no supplier code; the agent looks the supplier up by
+name and archives it. That 2/2 versus 3/1 split is the demo's point, not a bug.
 
 **The browser cannot resolve Docker service names.** Frontend code always calls
 relative `/api/...` paths. nginx proxies them to `agent-api:8080`, so every
