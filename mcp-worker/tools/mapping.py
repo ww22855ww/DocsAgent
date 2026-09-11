@@ -74,17 +74,18 @@ def _real_supplier(code: str | None, name: str | None) -> list[dict]:
     ]
 
 
+# The item master holds one row per inventory organization (155 for a typical
+# part), so an unfiltered lookup returns the same part many times and reads as
+# ambiguous. Organization 1 is the master org and carries exactly one row.
+MASTER_ORG_ID = 1
+
+
 def _real_part(part_no: str) -> list[dict]:
-    # The item master carries one row per inventory organization, so a plain
-    # SELECT returns the same part many times and looks ambiguous. DISTINCT
-    # collapses those. The rownum cap sits outside the DISTINCT because Oracle
-    # applies rownum before it, which would otherwise truncate the wrong set.
     sql = (
-        "select * from ("
-        "select distinct segment1, description "
+        "select segment1, description "
         "from apps.mtl_system_items_b "
-        f"where segment1 = '{part_no}'"
-        f") where rownum <= {MAX_ROWS}"
+        f"where segment1 = '{part_no}' and organization_id = {MASTER_ORG_ID} "
+        f"and rownum <= {MAX_ROWS}"
     )
     log.info("dbquery part: %s", sql)
 
