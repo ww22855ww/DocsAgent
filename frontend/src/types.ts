@@ -48,3 +48,26 @@ export interface TaskFinal {
 export type TaskState =
   | 'Created' | 'Running' | 'WaitingLlm' | 'WaitingTool'
   | 'ManualReview' | 'Completed' | 'Failed'
+
+export interface ServiceStatus {
+  key: string
+  name: string
+  detail: string
+  ok: boolean
+  ms: number
+  required: boolean
+}
+
+export interface HealthReport {
+  ready: boolean
+  checkedAt: string
+  mode: {
+    agent: string
+    llmProvider: string
+    llmModel: string
+    dbquery: string
+    mailEnabled: boolean
+    busy: boolean
+  }
+  services: ServiceStatus[]
+}

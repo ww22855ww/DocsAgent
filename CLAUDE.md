@@ -326,6 +326,24 @@ the ambiguous-match scenario. Keep the default run reproducible; the numbers in
 The mock portal's query must ignore the date parameter and always return the
 same four files, so the demo does not break on a different day.
 
+## Running the demo
+
+`./scripts/reset-demo.ps1` is the one command before any rehearsal or the
+meeting: it clears `data/`, empties the task and result tables, regenerates the
+mock documents and sets the supplier scenario back to resolvable. `-Ambiguous`
+leaves the two-vendor case on; `-Full` also reseeds the master tables, which is
+only needed after editing `db/init.sql`.
+
+`GET /api/health/services` probes all six dependencies in parallel and the
+console shows it as a strip at the top. Reachability only: the LLM check is an
+unauthenticated call whose 401 still proves DNS, TLS and the route, so checking
+costs no tokens and sends no mail. The SQL API is marked optional because the
+default demo runs on mock master data.
+
+`README.md` holds the five-minute script, the likely questions, and the three
+fallbacks in order: switch to Scripted, play
+`docs/media/agent-run-fallback.gif`, or present the walkthrough alone.
+
 ## Presentation aid
 
 `docs/architecture-walkthrough.html` is a twelve-step interactive walkthrough

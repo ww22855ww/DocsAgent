@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { fetchHealth, startTask, streamTask } from './api'
+import HealthStrip from './components/HealthStrip'
 import ResultPanel from './components/ResultPanel'
 import TaskForm from './components/TaskForm'
 import Timeline from './components/Timeline'
@@ -83,6 +84,8 @@ export default function App() {
           </span>
         )}
       </header>
+
+      <HealthStrip />
 
       <TaskForm
         prompt={prompt}

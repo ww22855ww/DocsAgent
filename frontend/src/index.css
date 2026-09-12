@@ -213,3 +213,80 @@ table.documents tr:last-child td { border-bottom: 0; }
   .tiles { grid-template-columns: repeat(2, 1fr); }
   table.documents { display: block; overflow-x: auto; }
 }
+
+/* ---------- pre-flight health strip ---------- */
+
+.health {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 10px 14px;
+  margin-bottom: 16px;
+  font-size: 0.86rem;
+}
+.health.bad-bar { border-color: #b3261e; }
+.health-summary { color: #5b6478; }
+
+.dot {
+  width: 9px; height: 9px; border-radius: 50%;
+  flex: none; display: inline-block;
+  background: #9aa3b5;
+}
+.dot.ok   { background: #1a7f45; }
+.dot.bad  { background: #b3261e; }
+.dot.warn { background: #9a6207; }
+.dot.idle { background: #9aa3b5; }
+
+.modes { display: flex; gap: 6px; flex-wrap: wrap; margin-left: auto; }
+.mode-chip {
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  padding: 2px 10px;
+  font-size: 0.76rem;
+  color: #5b6478;
+  white-space: nowrap;
+}
+
+.health button.link {
+  background: none; border: 0; padding: 0;
+  color: #1d4ed8; font-size: 0.82rem; cursor: pointer;
+  font-family: inherit;
+}
+.health button.link:disabled { opacity: 0.5; cursor: default; }
+
+.health-list {
+  list-style: none;
+  margin: 4px 0 0;
+  padding: 10px 0 0;
+  width: 100%;
+  border-top: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.health-list li {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 0.84rem;
+}
+.health-list .svc { min-width: 140px; font-weight: 500; }
+.health-list .svc-detail { color: #5b6478; flex: 1; min-width: 0; }
+.health-list .svc-ms {
+  font-family: ui-monospace, "Cascadia Code", monospace;
+  font-size: 0.76rem; color: #98a2b6;
+  font-variant-numeric: tabular-nums;
+}
+
+@media (prefers-color-scheme: dark) {
+  .health-summary, .mode-chip, .health-list .svc-detail { color: #98a2b6; }
+}
+
+@media (max-width: 620px) {
+  .modes { margin-left: 0; }
+  .health-list .svc { min-width: 0; }
+}
