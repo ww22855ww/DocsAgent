@@ -1,16 +1,20 @@
 """Switch the ambiguous-supplier scenario on or off between demo runs.
 
-The mock supplier table holds two vendors whose names both contain "ACME".
-V00556 ships disabled, so a lookup by the name on quality_002.xlsx resolves to
-exactly one row and the agent can finish the document on its own.
+勝宏科技 is a real two-entity vendor group in Oracle EBS: the Huizhou company
+(40891) and the Thailand company (2410179) share a name stem, and both have 2026
+purchase orders. The quality report names only "勝宏科技", with no supplier code.
 
-Enabling V00556 makes that same lookup ambiguous. Nothing else changes: the
-document, the prompt and the tools are identical. What changes is whether the
-agent has enough information to decide, which is the point being demonstrated.
+The Thailand row ships disabled, so the lookup resolves to exactly one vendor and
+the agent can finish the document on its own. Enabling it makes the same lookup
+ambiguous. Nothing else changes: same document, same prompt, same tools. What
+changes is whether the agent has enough information to decide.
+
+In DBQUERY_MODE=real this name is always ambiguous, because both companies really
+do exist. The toggle only shapes the mock data.
 
     python scripts/scenario.py            # show current state
-    python scripts/scenario.py ambiguous  # two ACME suppliers
-    python scripts/scenario.py unique     # one ACME supplier (default)
+    python scripts/scenario.py ambiguous  # both 勝宏科技 entities
+    python scripts/scenario.py unique     # Huizhou only (default)
 """
 
 from __future__ import annotations
@@ -19,7 +23,8 @@ import subprocess
 import sys
 
 CONTAINER = "adp-postgres"
-AMBIGUOUS_CODE = "V00556"
+AMBIGUOUS_CODE = "2410179"
+NAME_STEM = "勝宏科技"
 
 
 def psql(sql: str) -> str:
@@ -35,17 +40,17 @@ def psql(sql: str) -> str:
 def show() -> None:
     rows = psql(
         "SELECT supplier_code || '  ' || supplier_name || '  enabled=' || enabled "
-        "FROM mock_suppliers WHERE upper(supplier_name) LIKE '%ACME%' ORDER BY supplier_code"
+        f"FROM mock_suppliers WHERE supplier_name LIKE '%{NAME_STEM}%' ORDER BY supplier_code"
     )
     enabled = psql(
-        "SELECT count(*) FROM mock_suppliers "
-        "WHERE enabled AND upper(supplier_name) LIKE '%ACME%'"
+        f"SELECT count(*) FROM mock_suppliers "
+        f"WHERE enabled AND supplier_name LIKE '%{NAME_STEM}%'"
     )
-    print("ACME suppliers:")
+    print(f"{NAME_STEM} suppliers:")
     for line in rows.splitlines():
         print("  " + line)
     mode = "ambiguous" if int(enabled) > 1 else "unique"
-    print(f"\nlookup for \"ACME\" -> {mode} ({enabled} enabled)")
+    print(f"\nlookup for \"{NAME_STEM}\" -> {mode} ({enabled} enabled)")
     print("quality_002.xlsx will be " +
           ("sent to manual review" if mode == "ambiguous" else "archived by the agent"))
 

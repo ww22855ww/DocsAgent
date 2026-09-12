@@ -259,19 +259,43 @@ Undoing this would spend thousands of tokens per step.
 runs them one at a time. Two concurrent runs move each other's files and fail
 with "not in staging".
 
+**Mock master data is real.** The suppliers and part numbers in `db/init.sql`
+are Oracle EBS vendors with 2026 purchase orders at operating unit 152, and items
+actually bought from them. `DBQUERY_MODE=mock` and `DBQUERY_MODE=real` therefore
+answer the same questions the same way, so switching modes during the demo proves
+the adapter rather than changing the story. Keep it that way when editing the
+seed data.
+
+**The portal has two screens, so the agent has a routing decision.** SCM
+documents and ESG questionnaires have separate query forms and separate download
+routes, reached by `download_documents` and `download_esg_surveys`. Scripted mode
+routes by keyword match on the prompt, which is brittle on purpose: a task worded
+as "整理各家廠商回覆的碳排與勞權自評表" sends scripted to the wrong screen while
+the agent reads the intent and picks ESG. That contrast is the point.
+
 **The two modes are expected to disagree, and the demo turns on how.**
-quality_002.xlsx carries a vendor name but no supplier code. Scripted always
-sends it to manual review. What the agent does depends on whether the name
-resolves, which `scripts/scenario.py` switches by enabling a second ACME vendor:
+quality_002.xlsx names 勝宏科技 with no supplier code. Scripted always sends it to
+manual review. What the agent does depends on whether the name resolves, which
+`scripts/scenario.py` switches by enabling the Thailand entity of that real
+two-company vendor group:
 
 | | scripted | agent |
 |---|---|---|
-| unique (default) | manual review, no code | archived as V00555 |
-| ambiguous | manual review, no code | manual review, two candidates named |
+| unique (default) | manual review, no code | archived as 40891 |
+| ambiguous | manual review, no code | manual review, both candidates named |
 
 Both agent outcomes are correct. It recovers when the data supports a decision
 and declines when it does not, and the prompt forbids picking a row out of an
-ambiguous result. Reset to `unique` after demonstrating the ambiguous case.
+ambiguous result. In `DBQUERY_MODE=real` the name is always ambiguous, because
+both companies really exist. Reset to `unique` after demonstrating the ambiguous
+case.
+
+**Never make the model retype an identifier it has already seen.** Asked to
+repeat a Chinese vendor name into a tool argument, gemma4 turned 勝宏科技 into
+涵孚科技 and the lookup missed. `search_supplier` and `search_part` therefore
+accept a `filename`, which ToolRegistry swaps for the values the classifier
+extracted. This is the same rule as `archive_record`: the agent chooses which
+document and which tool, never the data.
 
 **The browser cannot resolve Docker service names.** Frontend code always calls
 relative `/api/...` paths. nginx proxies them to `agent-api:8080`, so every

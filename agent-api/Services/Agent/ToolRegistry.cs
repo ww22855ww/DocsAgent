@@ -39,7 +39,7 @@ public sealed class ToolRegistry(
             .Select(t => new LlmToolDefinition(
                 t.Name,
                 FirstParagraph(t.Description),
-                JsonNode.Parse(t.JsonSchema.GetRawText()) as JsonObject ?? EmptySchema()))
+                Augment(t.Name, JsonNode.Parse(t.JsonSchema.GetRawText()) as JsonObject ?? EmptySchema())))
             .ToList();
 
         defs.Add(new LlmToolDefinition(
@@ -94,6 +94,31 @@ public sealed class ToolRegistry(
     }
 
     /// <summary>
+    /// Let the lookup tools take a filename instead of a retyped identifier.
+    ///
+    /// The worker does not know about this argument; it is stripped again in
+    /// FillFromContext, which substitutes the value the classifier actually
+    /// extracted. The reason is transcription: asked to repeat a Chinese vendor
+    /// name into a tool argument, the model turned 勝宏科技 into 涵孚科技 and the
+    /// lookup missed. Naming the document instead of the value removes the
+    /// opportunity to get it wrong.
+    /// </summary>
+    private static JsonObject Augment(string toolName, JsonObject schema)
+    {
+        if (toolName is not ("search_supplier" or "search_part")) return schema;
+        if (schema["properties"] is not JsonObject props) return schema;
+
+        props["filename"] = new JsonObject
+        {
+            ["type"] = "string",
+            ["description"] =
+                "An already-classified document. Preferred: pass this instead of retyping "
+                + "a code or name, and the values extracted from that document are used.",
+        };
+        return schema;
+    }
+
+    /// <summary>
     /// Keep every lookup, resolved or not. The misses matter: they are the
     /// evidence for why a document went to manual review.
     /// </summary>
@@ -141,6 +166,22 @@ public sealed class ToolRegistry(
                 var copy = args.DeepClone().AsObject();
                 copy["task_id"] = context.Task.Id;
                 return copy;
+
+            // A lookup that names a document uses that document's own extracted
+            // identifiers. Searching by code is tried first, since it is exact.
+            case "search_supplier" when !string.IsNullOrWhiteSpace(filename):
+            {
+                var o = context.Outcome(filename!);
+                var byCode = !string.IsNullOrWhiteSpace(o.SupplierCode);
+                return new JsonObject
+                {
+                    ["supplier_code"] = byCode ? o.SupplierCode : null,
+                    ["supplier_name"] = byCode ? null : o.SupplierName,
+                };
+            }
+
+            case "search_part" when !string.IsNullOrWhiteSpace(filename):
+                return new JsonObject { ["part_no"] = context.Outcome(filename!).PartNo };
 
             default:
                 return args;

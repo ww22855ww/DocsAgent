@@ -15,9 +15,18 @@ import config
 log = logging.getLogger("mcp-worker.tools")
 
 # Mapping arguments are interpolated into SQL templates for the real adapter, so
-# they are restricted to an explicit character set first. Anything outside it is
-# rejected rather than escaped, which keeps the rule easy to audit.
-_SAFE_ARG = re.compile(r"^[A-Za-z0-9 ._@%+-]{1,80}$")
+# they are checked before they get anywhere near one.
+#
+# Real vendor names are Chinese, so a character whitelist is not workable here.
+# Instead everything that could end or escape a SQL string literal is rejected
+# outright: the quote characters, the statement separator, the escape character,
+# both comment introducers, and anything non-printable. What remains cannot
+# break out of the quoted value, and the rule is short enough to audit at a
+# glance. Rejecting rather than escaping means a name containing an apostrophe
+# is refused, which is the safe direction to fail in.
+_FORBIDDEN_CHARS = set("'\"`;\\\x00")
+_FORBIDDEN_SEQUENCES = ("--", "/*", "*/")
+MAX_ARG_LEN = 80
 
 
 class ToolError(Exception):
@@ -25,17 +34,26 @@ class ToolError(Exception):
 
 
 def validate_arg(value: str | None, field: str) -> str | None:
-    """Whitelist-check one mapping argument. None and blank pass through as None."""
+    """Reject anything that could escape a SQL string literal. Blank becomes None."""
     if value is None:
         return None
     value = value.strip()
     if not value:
         return None
-    if not _SAFE_ARG.match(value):
+
+    if len(value) > MAX_ARG_LEN:
+        raise ToolError(f"{field} is longer than {MAX_ARG_LEN} characters.")
+
+    bad = _FORBIDDEN_CHARS.intersection(value)
+    if bad or any(seq in value for seq in _FORBIDDEN_SEQUENCES):
         raise ToolError(
-            f"{field} contains characters that are not allowed. "
-            "Use letters, digits, space, and . _ @ % + - only."
+            f"{field} contains characters that are not allowed: "
+            "quotes, backslash, semicolon and SQL comment markers are rejected."
         )
+
+    if any(ord(ch) < 32 or ord(ch) == 127 for ch in value):
+        raise ToolError(f"{field} contains control characters.")
+
     return value
 
 

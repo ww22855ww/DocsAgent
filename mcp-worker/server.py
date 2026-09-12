@@ -62,9 +62,29 @@ async def download_documents(date: str, department: str = "SCM", document_type: 
         department: Department code, e.g. SCM.
         document_type: ALL, Invoice, QualityReport, DebitNote or Other.
 
+    This is the SCM Document Query screen: invoices, quality reports, debit notes
+    and correspondence. ESG questionnaires live on a different screen and need
+    download_esg_surveys instead.
+
     Safe to call twice: documents already in staging are skipped, not re-downloaded.
     """
     return await _run(browser_tools.download_documents, date, department, document_type)
+
+
+@mcp.tool()
+async def download_esg_surveys(year: str = "2026", status: str = "ALL") -> dict:
+    """Download supplier ESG questionnaires from the portal into staging.
+
+    Args:
+        year: Survey year, e.g. 2026.
+        status: ALL, Submitted or Draft.
+
+    This is the ESG Questionnaires screen, a different part of the portal from
+    the SCM documents. Use it for sustainability or ESG survey tasks.
+
+    Safe to call twice: files already in staging are skipped, not re-downloaded.
+    """
+    return await _run(browser_tools.download_esg_surveys, year, status)
 
 
 # ---------------------------------------------------------------------------

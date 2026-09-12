@@ -27,25 +27,35 @@ def _login(page) -> None:
     page.fill("#username", config.PORTAL_USERNAME)
     page.fill("#password", config.PORTAL_PASSWORD)
     page.click("#btn-login")
+    page.wait_for_selector("#sidebar", timeout=NAV_TIMEOUT_MS)
+
+
+def _search_documents(page, date: str, department: str, document_type: str) -> list[str]:
+    page.goto(f"{config.PORTAL_URL}/Documents/Query", timeout=NAV_TIMEOUT_MS)
     page.wait_for_selector("#query-form", timeout=NAV_TIMEOUT_MS)
-
-
-def _search(page, date: str, department: str, document_type: str) -> list[str]:
     page.fill("#queryDate", date)
     page.select_option("#department", department)
     page.select_option("#documentType", document_type)
     page.click("#btn-search")
-    page.wait_for_selector("#result-summary", timeout=NAV_TIMEOUT_MS)
+    return _read_results(page, "#result-summary", "#result-table tr.result-row")
 
-    count = int(page.get_attribute("#result-summary", "data-count") or "0")
+
+def _search_surveys(page, year: str, status: str) -> list[str]:
+    """The ESG questionnaires live on their own screen, with their own filters."""
+    page.goto(f"{config.PORTAL_URL}/Esg/Surveys", timeout=NAV_TIMEOUT_MS)
+    page.wait_for_selector("#esg-form", timeout=NAV_TIMEOUT_MS)
+    page.select_option("#surveyYear", year)
+    page.select_option("#surveyStatus", status)
+    page.click("#btn-esg-search")
+    return _read_results(page, "#esg-summary", "#esg-table tr.esg-row")
+
+
+def _read_results(page, summary_selector: str, row_selector: str) -> list[str]:
+    page.wait_for_selector(summary_selector, timeout=NAV_TIMEOUT_MS)
+    count = int(page.get_attribute(summary_selector, "data-count") or "0")
     if count == 0:
         return []
-
-    page.wait_for_selector("#result-table", timeout=NAV_TIMEOUT_MS)
-    return [
-        el.get_attribute("data-file")
-        for el in page.query_selector_all("#result-table tr.result-row")
-    ]
+    return [el.get_attribute("data-file") for el in page.query_selector_all(row_selector)]
 
 
 def _download_one(page, filename: str) -> str:
@@ -59,11 +69,11 @@ def _download_one(page, filename: str) -> str:
     return target
 
 
-def download_documents(date: str, department: str = "SCM", document_type: str = "ALL") -> dict:
-    """Log into the portal, run the document query, download the results, stage them.
+def _fetch(label: str, search, query: dict) -> dict:
+    """Log in, run one section's search, stage whatever it returned.
 
-    Idempotent: files already present in staging are reported as skipped rather
-    than downloaded again, so a repeated call is harmless.
+    Idempotent: files already in staging are reported as skipped rather than
+    downloaded again, so a repeated call is harmless.
     """
     os.makedirs(config.DOWNLOADS_DIR, exist_ok=True)
     os.makedirs(config.STAGING_DIR, exist_ok=True)
@@ -83,8 +93,8 @@ def download_documents(date: str, department: str = "SCM", document_type: str = 
             _login(page)
             log.info("portal login ok as %s", config.PORTAL_USERNAME)
 
-            found = _search(page, date, department, document_type)
-            log.info("query dept=%s type=%s -> %d rows", department, document_type, len(found))
+            found = search(page)
+            log.info("%s query %s -> %d rows", label, query, len(found))
 
             for name in found:
                 if not name:
@@ -111,10 +121,29 @@ def download_documents(date: str, department: str = "SCM", document_type: str = 
 
     return {
         "status": "success",
-        "query": {"date": date, "department": department, "document_type": document_type},
+        "source": label,
+        "query": query,
         "downloaded_count": len(downloaded),
         "skipped_count": len(skipped),
         "files": [m["filename"] for m in files_meta],
         "details": files_meta,
         "staging_dir": config.STAGING_DIR,
     }
+
+
+def download_documents(date: str, department: str = "SCM", document_type: str = "ALL") -> dict:
+    """Fetch documents from the portal's SCM Document Query screen."""
+    return _fetch(
+        "scm_documents",
+        lambda page: _search_documents(page, date, department, document_type),
+        {"date": date, "department": department, "document_type": document_type},
+    )
+
+
+def download_esg_surveys(year: str = "2026", status: str = "ALL") -> dict:
+    """Fetch questionnaires from the portal's ESG Questionnaires screen."""
+    return _fetch(
+        "esg_surveys",
+        lambda page: _search_surveys(page, year, status),
+        {"year": year, "status": status},
+    )

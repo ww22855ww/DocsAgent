@@ -32,13 +32,23 @@ public sealed class ScriptedAgentRunner(
 
         task.State = TaskState.Running;
 
-        // 1. Fetch
-        var downloaded = await CallAsync(context, "download_documents", new JsonObject
-        {
-            ["date"] = today,
-            ["department"] = "SCM",
-            ["document_type"] = "ALL",
-        }, "Fetching today's SCM documents from the portal", ct);
+        // 1. Fetch. The portal has two screens, so even the fixed path has to
+        //    choose one. Scripted mode does it by keyword: no judgement, just a
+        //    lookup table. The agent reads the same task and reasons about it.
+        var wantsEsg = LooksLikeEsg(task.Prompt);
+
+        var downloaded = wantsEsg
+            ? await CallAsync(context, "download_esg_surveys", new JsonObject
+            {
+                ["year"] = DateTime.Now.Year.ToString(),
+                ["status"] = "ALL",
+            }, "Fetching ESG questionnaires from the portal", ct)
+            : await CallAsync(context, "download_documents", new JsonObject
+            {
+                ["date"] = today,
+                ["department"] = "SCM",
+                ["document_type"] = "ALL",
+            }, "Fetching today's SCM documents from the portal", ct);
 
         var files = (downloaded["files"] as JsonArray)?
             .Select(f => f?.GetValue<string>())
@@ -81,6 +91,19 @@ public sealed class ScriptedAgentRunner(
         }
 
         Summarise(context);
+    }
+
+    /// <summary>
+    /// Keyword routing for scripted mode. Brittle by design: it is the thing the
+    /// agent replaces. A task worded outside this list sends scripted mode to
+    /// the wrong screen, which is worth showing.
+    /// </summary>
+    private static readonly string[] EsgKeywords = ["esg", "問卷", "永續", "questionnaire", "survey", "sustainab"];
+
+    private static bool LooksLikeEsg(string prompt)
+    {
+        var text = prompt.ToLowerInvariant();
+        return EsgKeywords.Any(k => text.Contains(k, StringComparison.OrdinalIgnoreCase));
     }
 
     private async Task ProcessDocumentAsync(AgentContext context, string filename, CancellationToken ct)
@@ -220,8 +243,9 @@ public sealed class ScriptedAgentRunner(
         var review = docs.Count(d => d.Status == "manual_review");
         var failed = docs.Count(d => d.Status == "failed");
 
+        var section = LooksLikeEsg(task.Prompt) ? "ESG questionnaires" : "SCM";
         task.Summary =
-            $"Processed {docs.Count} document(s) from SCM. " +
+            $"Processed {docs.Count} document(s) from {section}. " +
             $"{archived} archived automatically, {review} sent to manual review" +
             (failed > 0 ? $", {failed} could not be processed." : ".");
 

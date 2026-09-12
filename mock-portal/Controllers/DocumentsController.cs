@@ -25,8 +25,8 @@ public class DocumentsController : Controller
     public IActionResult Query(QueryViewModel model)
     {
         model.Searched = true;
-        model.Results = _store.Query(model.Department, model.DocumentType);
-        _log.LogInformation("Query dept={Dept} type={Type} date={Date} -> {Count} rows",
+        model.Results = _store.QueryDocuments(model.Department, model.DocumentType);
+        _log.LogInformation("SCM query dept={Dept} type={Type} date={Date} -> {Count} rows",
             model.Department, model.DocumentType, model.QueryDate, model.Results.Count);
         return View(model);
     }
@@ -34,14 +34,14 @@ public class DocumentsController : Controller
     [HttpGet]
     public IActionResult Download(string file)
     {
-        var path = _store.ResolvePath(file);
+        var path = _store.ResolvePath(PortalSection.ScmDocuments, file);
         if (path is null)
         {
-            _log.LogWarning("Download rejected for unknown file {File}", file);
+            _log.LogWarning("SCM download rejected for {File}", file);
             return NotFound();
         }
 
-        _log.LogInformation("Download {File}", file);
+        _log.LogInformation("SCM download {File}", file);
         var name = Path.GetFileName(path);
         return PhysicalFile(path, MockDocumentStore.ContentTypeFor(name), name);
     }

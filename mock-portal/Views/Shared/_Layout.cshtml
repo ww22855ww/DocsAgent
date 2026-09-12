@@ -28,9 +28,14 @@
         {
             <nav id="sidebar">
                 <div class="nav-group">Supply Chain</div>
-                <a id="menu-documents" class="nav-item active" href="/Documents/Query">Document Query</a>
+                <a id="menu-documents" class="nav-item @(ViewData["Menu"] as string == "documents" ? "active" : "")"
+                   href="/Documents/Query">Document Query</a>
                 <a id="menu-suppliers" class="nav-item disabled" href="#">Supplier Master</a>
                 <a id="menu-po" class="nav-item disabled" href="#">Purchase Orders</a>
+                <div class="nav-group">Sustainability</div>
+                <a id="menu-esg" class="nav-item @(ViewData["Menu"] as string == "esg" ? "active" : "")"
+                   href="/Esg/Surveys">ESG Questionnaires</a>
+                <a id="menu-carbon" class="nav-item disabled" href="#">Carbon Reports</a>
                 <div class="nav-group">Quality</div>
                 <a id="menu-iqc" class="nav-item disabled" href="#">IQC Records</a>
             </nav>

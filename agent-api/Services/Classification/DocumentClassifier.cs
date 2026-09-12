@@ -19,18 +19,20 @@ public sealed class DocumentClassifier(
 {
     public static readonly string[] Categories =
     [
-        "SupplierInvoice", "DebitNote", "QualityReport", "ShippingDocument", "Unknown",
+        "SupplierInvoice", "DebitNote", "QualityReport", "ShippingDocument",
+        "EsgQuestionnaire", "Unknown",
     ];
 
     private const string SystemPrompt = """
         You classify procurement documents for a supply chain department.
 
-        A document belongs to one of the four business categories only if it is a
-        structured business record: it carries labelled fields and its own reference
-        number. Prose written to a person - a letter, an email, a notice, anything
-        whose body is sentences rather than fields - is Unknown, even when it
-        discusses invoices, deliveries, defects or inspections. Subject matter does
-        not decide the category; document structure does.
+        A document belongs to one of the business categories only if it is a
+        complete structured record: it carries labelled fields, its own reference
+        number, and the substance of the record filled in. Prose written to a
+        person - a letter, an email, a notice, anything whose body is sentences
+        rather than fields - is Unknown, even when it discusses invoices,
+        deliveries, defects or inspections. Subject matter does not decide the
+        category; structure and completeness do.
 
         Categories:
         - SupplierInvoice: an invoice from a supplier. Invoice number, line items, amounts.
@@ -39,13 +41,19 @@ public sealed class DocumentClassifier(
         - QualityReport: an inspection record. Has an inspection or lot reference and a
           result such as PASS or FAIL, laid out as fields.
         - ShippingDocument: a packing list, delivery note or bill of lading.
-        - Unknown: free-form correspondence, or anything that does not clearly fit above.
+        - EsgQuestionnaire: a supplier sustainability survey return. Has a survey
+          number and answered sections covering environment, social and governance
+          topics. A return whose sections are largely unanswered, or that is still
+          marked Draft, is not a completed record: classify it Unknown.
+        - Unknown: free-form correspondence, incomplete returns, or anything that
+          does not clearly fit above.
 
         Extraction rules:
         - Copy values exactly as printed. Never invent, reformat or re-punctuate an
           identifier, and never include surrounding quotes or commas in a value.
         - document_no is the record's own primary identifier: the invoice number, the
-          debit note number, the inspection or lot reference, or the shipment number.
+          debit note number, the inspection or lot reference, the shipment number,
+          or the survey number.
         - part_no is the item or part number. If the document lists several line items,
           use the part number of the first line.
         - supplier_code is a vendor code. When the document names a vendor but gives no

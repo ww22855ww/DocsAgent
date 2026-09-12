@@ -15,19 +15,32 @@ CREATE TABLE IF NOT EXISTS mock_parts (
     supplier_code TEXT REFERENCES mock_suppliers(supplier_code)
 );
 
+-- Real vendors and part numbers, taken from Oracle EBS: suppliers with 2026
+-- purchase orders at operating unit 152, and items actually bought from them.
+-- Using real master data means DBQUERY_MODE=mock and DBQUERY_MODE=real answer
+-- the same questions the same way, so switching modes during the demo proves
+-- the adapter rather than changing the story.
+--
+-- 勝宏科技 is a genuine two-entity ambiguity in the live data: the Huizhou and
+-- Thailand companies share a name stem. scripts/scenario.py enables or disables
+-- the Thailand row to switch the demo between the resolvable and the ambiguous
+-- case. In DBQUERY_MODE=real the name is always ambiguous, which is the point.
 INSERT INTO mock_suppliers (supplier_code, supplier_name, vendor_id, enabled) VALUES
-    ('V00123', 'Foxlink Precision',  310001, TRUE),
-    ('V00321', 'Delta Components',   310002, TRUE),
-    ('V00555', 'ACME Electronics',   310003, TRUE),
-    -- Scenario B (multiple matches for "ACME"). Disabled by default so the
-    -- default demo run resolves ACME to exactly one supplier.
-    ('V00556', 'ACME Logistics',     310004, FALSE)
+    ('3707',    '華碩電腦股份有限公司',       4056,    TRUE),
+    ('3385',    '聯強國際股份有限公司',       3598,    TRUE),
+    ('40891',   '勝宏科技(惠州)股份有限公司', 70356,   TRUE),
+    ('2410179', '勝宏科技（泰國）有限公司',   4092820, FALSE),
+    ('9414',    '瀚宇博德科技(江陰)有限公司', 61927,   TRUE),
+    ('2607',    '福華電子股份有限公司',       2607,    TRUE),
+    ('50163',   '至上電子股份有限公司',       10789,   TRUE),
+    ('3150',    '麗臺科技股份有限公司',       3150,    TRUE)
 ON CONFLICT (supplier_code) DO NOTHING;
 
 INSERT INTO mock_parts (part_no, description, supplier_code) VALUES
-    ('ABC-9981', 'Connector housing 12P', 'V00123'),
-    ('ABC-9982', 'Connector pin set',     'V00123'),
-    ('DLT-2201', 'Power module 65W',      'V00321')
+    ('05-152-649111', 'RES.649 OHM.1/16W.1%...SMD 0402......LEAD-FREE(RoHS/HF)', '9414'),
+    ('04-888-105003', 'C/C.1uF.10V.10%..X5R.....SMD 0402....LEAD-FREE(RoHS/HF)', '9414'),
+    ('10-261-004393', 'HEADER.BV..4*1 180D SMD..P1.25mm......46.W/CAP..NATURE', '2607'),
+    ('05C531-103530', 'THERMISTOR NTC.10K..3%.(CI-ASUS).SMD 0603..NCP18XH103E03RB', '3707')
 ON CONFLICT (part_no) DO NOTHING;
 
 CREATE INDEX IF NOT EXISTS idx_mock_suppliers_name

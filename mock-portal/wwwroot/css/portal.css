@@ -54,12 +54,12 @@ button:hover { background: #1b44bb; }
 
 .summary { margin-bottom: 12px; color: #4b5468; }
 
-#result-table { width: 100%; border-collapse: collapse; background: #fff;
+#result-table, #esg-table { width: 100%; border-collapse: collapse; background: #fff;
                 border: 1px solid #d9dde5; border-radius: 10px; overflow: hidden; }
-#result-table th { text-align: left; background: #f5f7fa; padding: 10px 12px;
+#result-table th, #esg-table th { text-align: left; background: #f5f7fa; padding: 10px 12px;
                    font-size: 12px; color: #4b5468; border-bottom: 1px solid #e2e6ee; }
-#result-table td { padding: 10px 12px; border-bottom: 1px solid #eef1f6; }
-#result-table tr:last-child td { border-bottom: 0; }
+#result-table td, #esg-table td { padding: 10px 12px; border-bottom: 1px solid #eef1f6; }
+#result-table tr:last-child td, #esg-table tr:last-child td { border-bottom: 0; }
 .mono { font-family: ui-monospace, "Cascadia Code", Consolas, monospace; font-size: 13px; }
 .btn-download { color: #1d4ed8; text-decoration: none; font-weight: 600; }
 .btn-download:hover { text-decoration: underline; }

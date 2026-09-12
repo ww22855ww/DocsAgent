@@ -30,9 +30,20 @@ public sealed class LlmAgentRunner(
         Today is {0}.
 
         Work through the user's task using the tools. Call one tool at a time and
-        read each result before deciding the next step. A normal run looks like:
+        read each result before deciding the next step.
 
-        1. download_documents to fetch the documents into staging.
+        The portal keeps two kinds of work on separate screens, so start by
+        deciding which the task is asking for:
+        - SCM documents - invoices, quality reports, debit notes, correspondence.
+          Fetch these with download_documents.
+        - ESG questionnaires - supplier sustainability survey returns. Fetch these
+          with download_esg_surveys.
+        Fetch only the one the task asks for. If the task is genuinely about both,
+        fetch each in turn.
+
+        A normal run then looks like:
+
+        1. The fetch tool for the screen the task named.
         2. extract_documents once, for everything in staging.
         3. classify_document for each file, one at a time.
         4. For each classified document:
@@ -43,10 +54,18 @@ public sealed class LlmAgentRunner(
            - Then call archive_record with just the filename. The classification
              and the mapping are attached for you; do not repeat them.
 
+        Passing identifiers:
+        - Prefer calling search_supplier and search_part with just filename. The
+          code, name and part number extracted from that document are filled in
+          for you, exactly as they were printed.
+        - Only type a code or name yourself when you are searching for something
+          that did not come from a document. Never retranscribe a value you have
+          already seen: use the filename instead.
+
         Handling a supplier you cannot resolve directly:
-        - With a supplier_code, search by code.
-        - With no code but a supplier_name, search by name instead. Do not give up
-          on a document just because the code is missing.
+        - search_supplier with the filename tries the code when the document has
+          one and the name when it does not. Do not give up on a document just
+          because the code is missing.
         - If the search returns match "ambiguous" or "not_found", the mapping is
           not settled: send the document to manual review, saying in the reason
           how many candidates were found and what you searched for.
@@ -189,7 +208,7 @@ public sealed class LlmAgentRunner(
 
         context.AddStep(
             kind: name == ToolRegistry.ClassifyTool ? "classify" : "tool",
-            title: Describe(name, args),
+            title: Describe(context, name, args),
             thought: thought,
             toolName: name,
             arguments: args.DeepClone(),
@@ -246,18 +265,46 @@ public sealed class LlmAgentRunner(
             task.Steps.Count, archived, review);
     }
 
-    private static string Describe(string name, JsonObject args)
+    /// <summary>
+    /// Human-readable step title.
+    ///
+    /// A lookup may be addressed by filename rather than by value, so the label
+    /// falls back to what that document actually carries. Otherwise the trace
+    /// would read "Looking up supplier" with nothing after it.
+    /// </summary>
+    private static string Describe(AgentContext context, string name, JsonObject args)
     {
         var file = args["filename"]?.GetValue<string>();
+
+        string Supplier()
+        {
+            var value = args["supplier_code"]?.GetValue<string>()
+                     ?? args["supplier_name"]?.GetValue<string>();
+            if (string.IsNullOrWhiteSpace(value) && !string.IsNullOrWhiteSpace(file))
+            {
+                var o = context.Outcome(file!);
+                value = o.SupplierCode ?? o.SupplierName;
+            }
+            return string.IsNullOrWhiteSpace(value) ? "Looking up supplier" : $"Looking up supplier {value}";
+        }
+
+        string Part()
+        {
+            var value = args["part_no"]?.GetValue<string>();
+            if (string.IsNullOrWhiteSpace(value) && !string.IsNullOrWhiteSpace(file))
+                value = context.Outcome(file!).PartNo;
+            return string.IsNullOrWhiteSpace(value) ? "Looking up part" : $"Looking up part {value}";
+        }
+
         return name switch
         {
             "download_documents" => $"Downloading {args["department"]?.GetValue<string>() ?? "SCM"} documents",
+            "download_esg_surveys" => "Downloading ESG questionnaires",
             "extract_documents" => "Reading staged documents",
             "list_staging_files" => "Checking staging",
             ToolRegistry.ClassifyTool => $"Classifying {file}",
-            "search_supplier" => "Looking up supplier " +
-                (args["supplier_code"]?.GetValue<string>() ?? args["supplier_name"]?.GetValue<string>() ?? ""),
-            "search_part" => $"Looking up part {args["part_no"]?.GetValue<string>()}",
+            "search_supplier" => Supplier(),
+            "search_part" => Part(),
             "archive_record" => $"Archiving {file}",
             "notify_manual_review" => $"Sending {file} to manual review",
             _ => name,

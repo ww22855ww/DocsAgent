@@ -1,0 +1,76 @@
+@model MockPortal.Models.EsgQueryViewModel
+@{
+    ViewData["Title"] = "ESG Questionnaires";
+    ViewData["Menu"] = "esg";
+    Layout = "_Layout";
+}
+<h1>ESG Questionnaires</h1>
+
+<form id="esg-form" method="post" action="/Esg/Surveys" class="query-panel">
+    @Html.AntiForgeryToken()
+    <div class="field">
+        <label for="surveyYear">Year</label>
+        <select id="surveyYear" name="Year">
+            @foreach (var y in MockPortal.Models.EsgQueryViewModel.Years)
+            {
+                <option value="@y" selected="@(y == Model.Year)">@y</option>
+            }
+        </select>
+    </div>
+    <div class="field">
+        <label for="surveyStatus">Status</label>
+        <select id="surveyStatus" name="Status">
+            @foreach (var s in MockPortal.Models.EsgQueryViewModel.Statuses)
+            {
+                <option value="@s" selected="@(s == Model.Status)">@s</option>
+            }
+        </select>
+    </div>
+    <button id="btn-esg-search" type="submit">Search</button>
+</form>
+
+@if (Model.Searched)
+{
+    <div id="esg-summary" class="summary" data-count="@Model.Results.Count">
+        @Model.Results.Count questionnaire(s) found.
+    </div>
+
+    @if (Model.Results.Count > 0)
+    {
+        <table id="esg-table">
+            <thead>
+                <tr>
+                    <th>Survey No</th>
+                    <th>Supplier Code</th>
+                    <th>Supplier</th>
+                    <th>Status</th>
+                    <th>Submitted</th>
+                    <th>File</th>
+                    <th></th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var s in Model.Results)
+                {
+                    <tr class="esg-row" data-file="@s.FileName">
+                        <td>@s.SurveyNo</td>
+                        <td>@(string.IsNullOrEmpty(s.SupplierCode) ? "—" : s.SupplierCode)</td>
+                        <td>@s.SupplierName</td>
+                        <td>@s.Status</td>
+                        <td>@s.SubmittedOn</td>
+                        <td class="mono">@s.FileName</td>
+                        <td>
+                            <a class="btn-download" data-file="@s.FileName"
+                               href="/Esg/Download?file=@Uri.EscapeDataString(s.FileName)"
+                               download>Download</a>
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    }
+    else
+    {
+        <div id="esg-no-results" class="summary">No questionnaires match the selected criteria.</div>
+    }
+}
