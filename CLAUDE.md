@@ -326,6 +326,27 @@ the ambiguous-match scenario. Keep the default run reproducible; the numbers in
 The mock portal's query must ignore the date parameter and always return the
 same four files, so the demo does not break on a different day.
 
+## Presentation aid
+
+`docs/architecture-walkthrough.html` is a twelve-step interactive walkthrough
+used to explain the demo at the department meeting, published as an Artifact at
+https://claude.ai/code/artifact/04668997-0199-4a6f-b8ac-d3c15a2c51d9
+
+It is self-contained and needs nothing running, so it still works if the stack
+does not. Republish by passing that URL as `url` from any conversation, or the
+same file path from the one that published it.
+
+Two conventions hold it together. Colour encodes one idea everywhere: violet is
+a decision the model makes, teal is work deterministic code carries out, amber
+is a system we do not own. And architecture edges carry explicit waypoints
+rather than auto-routing, because auto-routing put labels on top of nodes and
+ran two edges down the same channel; the node columns are chosen so every edge
+has an empty channel to run down.
+
+Keep its figures true to the code. The numbers it quotes (3 archived / 1 review
+in agent mode, 2 / 2 scripted), the vendor codes, and the transcription bug it
+cites are all real results from this repo.
+
 ## Secrets
 
 `.env` holds the LLM API keys, the AD credentials for the Mail API, and the

@@ -1,0 +1,1212 @@
+<title>文件 Agent 架構導覽</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700&family=Noto+Serif+TC:wght@600;700&family=JetBrains+Mono:wght@400;500&display=swap">
+
+<style>
+/* ---------------------------------------------------------------------------
+   Palette carries one idea: violet is a decision made by the model, teal is
+   work carried out by deterministic code, amber is a system we do not own.
+   That encoding repeats in every figure, so the distinction is learned by
+   looking rather than by being told.
+   Neutrals are biased slightly toward the blue accent already used by the demo
+   application, so the two read as one family.
+--------------------------------------------------------------------------- */
+:root {
+  --ground:      #eceff5;
+  --surface:     #ffffff;
+  --surface-sub: #f4f6fa;
+  --line:        #d3d9e4;
+  --line-soft:   #e4e8f0;
+  --ink:         #131924;
+  --ink-2:       #3c4659;
+  --muted:       #6b7588;
+
+  --accent:      #1d4ed8;
+  --accent-soft: #e6ecfc;
+
+  --decide:      #6d28d9;
+  --decide-soft: #efe8fd;
+  --do:          #0f766e;
+  --do-soft:     #e0f2f0;
+  --external:    #a2590a;
+  --external-soft:#fbeed9;
+
+  --warn:        #92610a;
+  --warn-soft:   #fbf0da;
+  --stop:        #a92420;
+  --stop-soft:   #fbe9e8;
+
+  --shadow: 0 1px 2px rgba(19, 25, 36, .05), 0 8px 24px -12px rgba(19, 25, 36, .18);
+
+  --serif: "Noto Serif TC", "Songti TC", Georgia, serif;
+  --sans:  "Noto Sans TC", "Segoe UI", system-ui, -apple-system, sans-serif;
+  --mono:  "JetBrains Mono", ui-monospace, Consolas, monospace;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --ground:      #0e1117;
+    --surface:     #161b24;
+    --surface-sub: #1c222d;
+    --line:        #2d3646;
+    --line-soft:   #232b38;
+    --ink:         #e9edf4;
+    --ink-2:       #b9c2d2;
+    --muted:       #8590a4;
+
+    --accent:      #7aa2ff;
+    --accent-soft: #1b2740;
+
+    --decide:      #b794f6;
+    --decide-soft: #2a1f45;
+    --do:          #5ecfbf;
+    --do-soft:     #10312e;
+    --external:    #e5a95a;
+    --external-soft:#3a2a12;
+
+    --warn:        #e5b45c;
+    --warn-soft:   #33270f;
+    --stop:        #f08a84;
+    --stop-soft:   #3a1c1a;
+
+    --shadow: 0 1px 2px rgba(0, 0, 0, .4), 0 10px 30px -14px rgba(0, 0, 0, .7);
+  }
+}
+
+:root[data-theme="dark"] {
+  --ground:      #0e1117;
+  --surface:     #161b24;
+  --surface-sub: #1c222d;
+  --line:        #2d3646;
+  --line-soft:   #232b38;
+  --ink:         #e9edf4;
+  --ink-2:       #b9c2d2;
+  --muted:       #8590a4;
+
+  --accent:      #7aa2ff;
+  --accent-soft: #1b2740;
+
+  --decide:      #b794f6;
+  --decide-soft: #2a1f45;
+  --do:          #5ecfbf;
+  --do-soft:     #10312e;
+  --external:    #e5a95a;
+  --external-soft:#3a2a12;
+
+  --warn:        #e5b45c;
+  --warn-soft:   #33270f;
+  --stop:        #f08a84;
+  --stop-soft:   #3a1c1a;
+
+  --shadow: 0 1px 2px rgba(0, 0, 0, .4), 0 10px 30px -14px rgba(0, 0, 0, .7);
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  background: var(--ground);
+  color: var(--ink);
+  font-family: var(--sans);
+  font-size: 15px;
+  line-height: 1.62;
+  -webkit-font-smoothing: antialiased;
+}
+
+.app {
+  min-height: 100vh;
+  display: grid;
+  grid-template-rows: auto 1fr auto;
+  max-width: 1360px;
+  margin: 0 auto;
+  padding-inline: 20px;
+  padding-block: 0;
+  gap: 0;
+}
+
+/* ---------------- top bar ---------------- */
+
+.bar {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+  padding-block: 20px 14px;
+  border-bottom: 1px solid var(--line-soft);
+}
+
+.brand { display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap; }
+
+.brand h1 {
+  font-family: var(--serif);
+  font-weight: 700;
+  font-size: 1.22rem;
+  margin: 0;
+  letter-spacing: .01em;
+  text-wrap: balance;
+}
+
+.brand .tag {
+  font-size: .76rem;
+  color: var(--muted);
+  letter-spacing: .04em;
+}
+
+.counter {
+  font-family: var(--mono);
+  font-size: .8rem;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+.counter b { color: var(--ink); font-weight: 500; }
+
+/* ---------------- body grid ---------------- */
+
+.work {
+  display: grid;
+  grid-template-columns: minmax(0, 1.62fr) minmax(320px, 1fr);
+  gap: 22px;
+  padding-block: 20px;
+  align-items: start;
+}
+
+/* ---------------- stage ---------------- */
+
+.stage {
+  position: relative;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  box-shadow: var(--shadow);
+  overflow: hidden;
+  min-height: 420px;
+  display: flex;
+  flex-direction: column;
+}
+
+.stage-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 14px;
+  border-bottom: 1px solid var(--line-soft);
+  background: var(--surface-sub);
+}
+
+.stage-label {
+  font-size: .72rem;
+  letter-spacing: .1em;
+  text-transform: uppercase;
+  color: var(--muted);
+  font-weight: 700;
+}
+
+.zoom { display: flex; gap: 6px; align-items: center; }
+
+.zoom button {
+  width: 30px; height: 30px;
+  display: grid; place-items: center;
+  border: 1px solid var(--line);
+  background: var(--surface);
+  color: var(--ink-2);
+  border-radius: 7px;
+  cursor: pointer;
+  font-size: .95rem;
+  font-family: var(--mono);
+  line-height: 1;
+}
+.zoom button:hover { border-color: var(--accent); color: var(--accent); }
+.zoom .level {
+  font-family: var(--mono);
+  font-size: .74rem;
+  color: var(--muted);
+  min-width: 46px;
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+}
+
+.canvas {
+  flex: 1;
+  position: relative;
+  overflow: hidden;
+  cursor: grab;
+  background-image: radial-gradient(var(--line-soft) 1px, transparent 1px);
+  background-size: 22px 22px;
+}
+.canvas.dragging { cursor: grabbing; }
+.canvas svg { display: block; width: 100%; height: 100%; }
+
+.hint {
+  position: absolute;
+  left: 12px; bottom: 10px;
+  font-size: .7rem;
+  color: var(--muted);
+  background: color-mix(in srgb, var(--surface) 88%, transparent);
+  padding: 3px 8px;
+  border-radius: 6px;
+  pointer-events: none;
+}
+
+/* ---------------- explanation panel ---------------- */
+
+.panel {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  min-width: 0;
+}
+
+.act {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: .72rem;
+  font-weight: 700;
+  letter-spacing: .1em;
+  color: var(--accent);
+  text-transform: uppercase;
+}
+.act::before {
+  content: "";
+  width: 18px; height: 2px;
+  background: var(--accent);
+  border-radius: 2px;
+}
+
+.panel h2 {
+  font-family: var(--serif);
+  font-size: 1.42rem;
+  line-height: 1.35;
+  margin: 6px 0 0;
+  text-wrap: balance;
+}
+
+.lede {
+  margin: 0;
+  color: var(--ink-2);
+  font-size: 1.02rem;
+}
+
+.points { display: flex; flex-direction: column; gap: 0; margin: 0; }
+
+.point {
+  padding: 13px 0;
+  border-top: 1px solid var(--line-soft);
+}
+.point:first-child { border-top: 1px solid var(--line); }
+
+.point h3 {
+  margin: 0 0 3px;
+  font-size: .95rem;
+  font-weight: 700;
+  letter-spacing: .01em;
+}
+.point p { margin: 0; color: var(--ink-2); font-size: .92rem; }
+
+.point code, .lede code, .callout code {
+  font-family: var(--mono);
+  font-size: .84em;
+  background: var(--surface-sub);
+  border: 1px solid var(--line-soft);
+  border-radius: 4px;
+  padding: 1px 5px;
+}
+
+.callout {
+  border-left: 3px solid var(--accent);
+  background: var(--surface);
+  border-radius: 0 10px 10px 0;
+  padding: 12px 14px;
+  font-size: .9rem;
+  color: var(--ink-2);
+}
+.callout b { color: var(--ink); }
+.callout.decide { border-left-color: var(--decide); }
+.callout.stop   { border-left-color: var(--stop); }
+.callout.warn   { border-left-color: var(--warn); }
+
+/* comparison table used on the closing steps */
+table.cmp {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: .88rem;
+}
+table.cmp th, table.cmp td {
+  text-align: left;
+  padding: 8px 10px;
+  border-bottom: 1px solid var(--line-soft);
+  vertical-align: top;
+}
+table.cmp thead th {
+  font-size: .7rem;
+  text-transform: uppercase;
+  letter-spacing: .08em;
+  color: var(--muted);
+  border-bottom: 1px solid var(--line);
+}
+table.cmp td.ok  { color: var(--do); font-weight: 500; }
+table.cmp td.bad { color: var(--warn); }
+
+/* ---------------- bottom rail ---------------- */
+
+.rail {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  flex-wrap: wrap;
+  padding-block: 12px 22px;
+  border-top: 1px solid var(--line-soft);
+}
+
+.steps {
+  display: flex;
+  gap: 4px;
+  flex: 1;
+  min-width: 220px;
+  flex-wrap: wrap;
+}
+
+.steps button {
+  width: 26px;
+  height: 26px;
+  border-radius: 7px;
+  border: 1px solid var(--line);
+  background: var(--surface);
+  color: var(--muted);
+  font-family: var(--mono);
+  font-size: .72rem;
+  cursor: pointer;
+  padding: 0;
+  font-variant-numeric: tabular-nums;
+}
+.steps button:hover { border-color: var(--accent); color: var(--accent); }
+.steps button[aria-current="step"] {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #fff;
+  font-weight: 500;
+}
+.steps .sep { width: 1px; background: var(--line); margin-inline: 6px; }
+
+.nav { display: flex; gap: 8px; }
+
+.nav button {
+  border: 1px solid var(--line);
+  background: var(--surface);
+  color: var(--ink);
+  border-radius: 9px;
+  padding: 8px 18px;
+  font-size: .9rem;
+  font-family: var(--sans);
+  font-weight: 500;
+  cursor: pointer;
+}
+.nav button:hover:not(:disabled) { border-color: var(--accent); color: var(--accent); }
+.nav button.primary {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #fff;
+}
+.nav button.primary:hover:not(:disabled) { filter: brightness(1.08); color: #fff; }
+.nav button:disabled { opacity: .4; cursor: not-allowed; }
+
+:where(button, [tabindex]):focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+/* ---------------- legend ---------------- */
+
+.legend {
+  display: flex;
+  gap: 14px;
+  flex-wrap: wrap;
+  font-size: .76rem;
+  color: var(--muted);
+  align-items: center;
+}
+.legend span { display: inline-flex; align-items: center; gap: 6px; }
+.legend i {
+  width: 10px; height: 10px; border-radius: 3px; display: inline-block;
+  border: 1px solid currentColor;
+}
+.legend .k-decide  { color: var(--decide); }
+.legend .k-do      { color: var(--do); }
+.legend .k-external{ color: var(--external); }
+
+/* ---------------- SVG shared ---------------- */
+
+svg text { font-family: var(--sans); fill: var(--ink); }
+svg .mono { font-family: var(--mono); }
+svg .dim { opacity: .26; transition: opacity .25s ease; }
+svg .node-box { transition: opacity .25s ease; }
+
+@media (prefers-reduced-motion: reduce) {
+  svg .dim, svg .node-box { transition: none; }
+}
+
+/* ---------------- responsive ---------------- */
+
+@media (max-width: 1000px) {
+  .work { grid-template-columns: minmax(0, 1fr); }
+  .stage { min-height: 340px; }
+}
+
+@media (max-width: 620px) {
+  body { font-size: 14px; }
+  .app { padding-inline: 14px; }
+  .panel h2 { font-size: 1.2rem; }
+  .nav button { flex: 1; padding: 10px 12px; }
+  .rail { gap: 10px; }
+}
+</style>
+
+<div class="app">
+  <header class="bar">
+    <div class="brand">
+      <h1>文件 Agent 架構導覽</h1>
+      <span class="tag">Agentic Document Processing · 部門例會</span>
+    </div>
+    <div class="counter"><b id="stepNo">1</b> / <span id="stepTotal">12</span> · <span id="actName">概念</span></div>
+  </header>
+
+  <div class="work">
+    <section class="stage">
+      <div class="stage-head">
+        <span class="stage-label" id="figLabel">圖示</span>
+        <div class="zoom">
+          <button type="button" id="zoomOut" title="縮小 (−)" aria-label="縮小">−</button>
+          <span class="level" id="zoomLevel">100%</span>
+          <button type="button" id="zoomIn" title="放大 (+)" aria-label="放大">+</button>
+          <button type="button" id="zoomReset" title="重設 (0)" aria-label="重設縮放">⟲</button>
+        </div>
+      </div>
+      <div class="canvas" id="canvas">
+        <svg id="figure" role="img" aria-label="流程與架構圖"></svg>
+        <span class="hint">滾輪縮放 · 拖曳平移 · ← → 換頁</span>
+      </div>
+    </section>
+
+    <aside class="panel">
+      <div>
+        <span class="act" id="actLabel">概念</span>
+        <h2 id="title">標題</h2>
+      </div>
+      <p class="lede" id="lede"></p>
+      <div class="points" id="points"></div>
+      <div id="extra"></div>
+      <div class="legend">
+        <span class="k-decide"><i></i>模型決策</span>
+        <span class="k-do"><i></i>程式執行</span>
+        <span class="k-external"><i></i>既有內部服務</span>
+      </div>
+    </aside>
+  </div>
+
+  <footer class="rail">
+    <div class="steps" id="steps"></div>
+    <div class="nav">
+      <button type="button" id="prev">← 上一步</button>
+      <button type="button" id="next" class="primary">下一步 →</button>
+    </div>
+  </footer>
+</div>
+
+<script>
+(function () {
+  "use strict";
+
+  // =========================================================================
+  // Architecture model. Nodes are positioned on a grid once; every step picks
+  // which of them are lit and which edges are drawn, so the audience keeps
+  // looking at one consistent map instead of a new picture each slide.
+  // =========================================================================
+
+  var W = 900, H = 512;
+
+  /* Four columns and two rows on a 150 x 72 grid. The column for each service
+     is chosen so that every edge below has an empty vertical channel to run
+     down: postgres sits under frontend rather than under agent-api, which is
+     what frees the channel agent-api needs to reach the LLM. */
+  var NODES = {
+    browser:  { x: 42,  y: 24,  w: 150, h: 52, title: "瀏覽器",      sub: "React 主控台",     kind: "plain" },
+    frontend: { x: 42,  y: 136, w: 150, h: 64, title: "frontend",    sub: "nginx :5173",      kind: "do" },
+    agentapi: { x: 264, y: 136, w: 150, h: 64, title: "agent-api",   sub: ".NET :5000",       kind: "mix" },
+    worker:   { x: 486, y: 136, w: 150, h: 64, title: "mcp-worker",  sub: "Python :8000",     kind: "do" },
+    portal:   { x: 708, y: 136, w: 150, h: 64, title: "mock-portal", sub: ".NET MVC :5100",   kind: "do" },
+    postgres: { x: 42,  y: 244, w: 150, h: 60, title: "postgres",    sub: ":5432",            kind: "do" },
+    llm:      { x: 264, y: 386, w: 150, h: 62, title: "LLM",         sub: "gemma4:26b",       kind: "ext" },
+    dbq:      { x: 486, y: 386, w: 150, h: 62, title: "SQL 查詢 API", sub: "Oracle EBS",       kind: "ext" },
+    mail:     { x: 708, y: 386, w: 150, h: 62, title: "Mail API",    sub: "Exchange",         kind: "ext" }
+  };
+
+  var BANDS = [
+    { x: 24, y: 104, w: 852, h: 214, label: "Docker Host · 本次 demo 自建" },
+    { x: 24, y: 356, w: 852, h: 124, label: "公司內部既有服務 · 不在 demo 內" }
+  ];
+
+  /* Every edge carries explicit waypoints. Auto-routing kept putting labels on
+     top of boxes and running two lines down the same channel; placing them by
+     hand is a few more numbers and no ambiguity. `lp` is where the label sits. */
+  var EDGES = {
+    "browser>frontend": {
+      from: "browser", to: "frontend", label: "HTTP / SSE",
+      pts: [[117, 76], [117, 136]], lp: [117, 106]
+    },
+    "frontend>agentapi": {
+      from: "frontend", to: "agentapi", label: "反向代理",
+      pts: [[192, 168], [264, 168]], lp: [228, 168]
+    },
+    "agentapi>worker": {
+      from: "agentapi", to: "worker", label: "MCP",
+      pts: [[414, 168], [486, 168]], lp: [450, 168]
+    },
+    "worker>portal": {
+      from: "worker", to: "portal", label: "Playwright",
+      pts: [[636, 168], [708, 168]], lp: [672, 152]
+    },
+    "agentapi>postgres": {
+      from: "agentapi", to: "postgres", label: "任務紀錄",
+      pts: [[300, 200], [300, 222], [117, 222], [117, 244]], lp: [232, 222]
+    },
+    "worker>postgres": {
+      from: "worker", to: "postgres", label: "mock 主檔",
+      pts: [[530, 200], [530, 238], [156, 238], [156, 244]], lp: [412, 238]
+    },
+    "agentapi>llm": {
+      from: "agentapi", to: "llm", label: "OpenAI 相容", tone: "decide",
+      pts: [[380, 200], [380, 386]], lp: [380, 300]
+    },
+    "worker>dbq": {
+      from: "worker", to: "dbq", label: "固定 SQL", tone: "ext",
+      pts: [[561, 200], [561, 386]], lp: [561, 300]
+    },
+    "worker>mail": {
+      from: "worker", to: "mail", label: "寄出通知", tone: "ext",
+      pts: [[600, 200], [600, 340], [783, 340], [783, 386]], lp: [700, 340]
+    }
+  };
+
+  // =========================================================================
+  // Concept figures. Hand-drawn because they show ideas, not the system.
+  // =========================================================================
+
+  function manualFigure() {
+    var steps = ["登入入口網站", "設條件查詢", "逐份下載", "開檔看內容", "查供應商主檔", "建檔 / 轉人工"];
+    var out = '<g>';
+    out += '<text x="450" y="58" text-anchor="middle" font-size="15" font-weight="700">今天：一份文件走完要六個動作</text>';
+    steps.forEach(function (s, i) {
+      var x = 40 + i * 138, y = 110;
+      out += '<rect x="' + x + '" y="' + y + '" width="116" height="74" rx="10" fill="var(--surface-sub)" stroke="var(--line)"/>';
+      out += '<text x="' + (x + 58) + '" y="' + (y + 30) + '" text-anchor="middle" font-size="11" class="mono" fill="var(--muted)">' + (i + 1) + '</text>';
+      out += '<text x="' + (x + 58) + '" y="' + (y + 52) + '" text-anchor="middle" font-size="12">' + s + '</text>';
+      if (i < steps.length - 1) {
+        out += '<line x1="' + (x + 118) + '" y1="' + (y + 37) + '" x2="' + (x + 134) + '" y2="' + (y + 37) + '" stroke="currentColor" stroke-width="1.4" marker-end="url(#ar)"/>';
+      }
+    });
+    out += '<rect x="40" y="228" width="816" height="70" rx="10" fill="var(--warn-soft)" stroke="var(--warn)" stroke-dasharray="4 3"/>';
+    out += '<text x="448" y="258" text-anchor="middle" font-size="13" font-weight="700" fill="var(--warn)">每天 20 到 30 份，乘以每份六個動作</text>';
+    out += '<text x="448" y="280" text-anchor="middle" font-size="12" fill="var(--ink-2)">動作本身不難，難在量大、重複，而且沒有人想做</text>';
+    out += '</g>';
+    return out;
+  }
+
+  function fixedFlowFigure() {
+    var out = '<g>';
+    out += '<text x="450" y="52" text-anchor="middle" font-size="15" font-weight="700">固定流程自動化：照著寫好的順序做</text>';
+    var steps = ["下載", "解析", "讀供應商代碼", "查主檔", "建檔"];
+    steps.forEach(function (s, i) {
+      var x = 70 + i * 156, y = 96;
+      var broken = i === 2;
+      out += '<rect x="' + x + '" y="' + y + '" width="130" height="62" rx="10" fill="' +
+        (broken ? "var(--stop-soft)" : "var(--do-soft)") + '" stroke="' + (broken ? "var(--stop)" : "var(--do)") + '"/>';
+      out += '<text x="' + (x + 65) + '" y="' + (y + 37) + '" text-anchor="middle" font-size="13" fill="' +
+        (broken ? "var(--stop)" : "var(--do)") + '" font-weight="500">' + s + '</text>';
+      if (i < steps.length - 1) {
+        out += '<line x1="' + (x + 132) + '" y1="' + (y + 31) + '" x2="' + (x + 152) + '" y2="' + (y + 31) + '" stroke="currentColor" stroke-width="1.4" ' +
+          (i >= 2 ? 'stroke-dasharray="4 4" opacity=".35"' : '') + ' marker-end="url(#ar)"/>';
+      }
+    });
+    out += '<path d="M 447 168 L 447 206" stroke="var(--stop)" stroke-width="1.6" marker-end="url(#ar-stop)"/>';
+    out += '<rect x="250" y="212" width="394" height="92" rx="10" fill="var(--stop-soft)" stroke="var(--stop)"/>';
+    out += '<text x="447" y="242" text-anchor="middle" font-size="13" font-weight="700" fill="var(--stop)">文件上只有廠商名稱，沒有代碼</text>';
+    out += '<text x="447" y="266" text-anchor="middle" font-size="12" fill="var(--ink-2)">流程沒寫這條分支，於是停在這裡</text>';
+    out += '<text x="447" y="288" text-anchor="middle" font-size="12" fill="var(--ink-2)">要嘛轉人工，要嘛回去改程式</text>';
+    out += '<text x="447" y="348" text-anchor="middle" font-size="12.5" fill="var(--muted)">每多一種例外，就多一段 if。流程圖越長，越沒人敢動。</text>';
+    out += '</g>';
+    return out;
+  }
+
+  function agentLoopFigure() {
+    var cx = 450, cy = 214, r = 118;
+    var out = '<g>';
+    out += '<text x="450" y="46" text-anchor="middle" font-size="15" font-weight="700">Agent：不是一條流程，是一個迴圈</text>';
+
+    out += '<circle cx="' + cx + '" cy="' + cy + '" r="' + r + '" fill="none" stroke="var(--line)" stroke-dasharray="3 5"/>';
+
+    var ring = [
+      { a: -90, t: "看目前狀況", k: "decide" },
+      { a: 0,   t: "決定下一步", k: "decide" },
+      { a: 90,  t: "呼叫一個工具", k: "do" },
+      { a: 180, t: "讀取結果", k: "do" }
+    ];
+    ring.forEach(function (n, i) {
+      var rad = n.a * Math.PI / 180;
+      var x = cx + Math.cos(rad) * r, y = cy + Math.sin(rad) * r;
+      var fill = n.k === "decide" ? "var(--decide-soft)" : "var(--do-soft)";
+      var stroke = n.k === "decide" ? "var(--decide)" : "var(--do)";
+      out += '<rect x="' + (x - 68) + '" y="' + (y - 22) + '" width="136" height="44" rx="9" fill="' + fill + '" stroke="' + stroke + '"/>';
+      out += '<text x="' + x + '" y="' + (y + 5) + '" text-anchor="middle" font-size="12.5" fill="' + stroke + '" font-weight="500">' + n.t + '</text>';
+    });
+
+    out += '<path d="M ' + (cx + 72) + ' ' + (cy - 78) + ' A 104 104 0 0 1 ' + (cx + 96) + ' ' + (cy - 30) +
+           '" fill="none" stroke="currentColor" stroke-width="1.5" marker-end="url(#ar)"/>';
+    out += '<path d="M ' + (cx + 96) + ' ' + (cy + 30) + ' A 104 104 0 0 1 ' + (cx + 70) + ' ' + (cy + 78) +
+           '" fill="none" stroke="currentColor" stroke-width="1.5" marker-end="url(#ar)"/>';
+    out += '<path d="M ' + (cx - 70) + ' ' + (cy + 78) + ' A 104 104 0 0 1 ' + (cx - 96) + ' ' + (cy + 30) +
+           '" fill="none" stroke="currentColor" stroke-width="1.5" marker-end="url(#ar)"/>';
+    out += '<path d="M ' + (cx - 96) + ' ' + (cy - 30) + ' A 104 104 0 0 1 ' + (cx - 70) + ' ' + (cy - 78) +
+           '" fill="none" stroke="currentColor" stroke-width="1.5" marker-end="url(#ar)"/>';
+
+    out += '<text x="' + cx + '" y="' + (cy - 6) + '" text-anchor="middle" font-size="12" fill="var(--muted)">每一圈只做一件事</text>';
+    out += '<text x="' + cx + '" y="' + (cy + 14) + '" text-anchor="middle" font-size="12" fill="var(--muted)">看完結果再決定下一步</text>';
+
+    out += '<rect x="628" y="384" width="248" height="76" rx="10" fill="var(--surface-sub)" stroke="var(--line)"/>';
+    out += '<text x="752" y="410" text-anchor="middle" font-size="12.5" font-weight="700">停止條件由程式決定</text>';
+    out += '<text x="752" y="431" text-anchor="middle" font-size="11.5" fill="var(--ink-2)">最多 30 步 · 單一工具 60 秒</text>';
+    out += '<text x="752" y="450" text-anchor="middle" font-size="11.5" fill="var(--ink-2)">重複呼叫同一工具即中止</text>';
+
+    out += '<rect x="24" y="384" width="248" height="76" rx="10" fill="var(--decide-soft)" stroke="var(--decide)"/>';
+    out += '<text x="148" y="410" text-anchor="middle" font-size="12.5" font-weight="700" fill="var(--decide)">模型負責</text>';
+    out += '<text x="148" y="431" text-anchor="middle" font-size="11.5" fill="var(--ink-2)">判斷、分類、例外處理</text>';
+    out += '<text x="148" y="450" text-anchor="middle" font-size="11.5" fill="var(--ink-2)">它不碰 selector，也不寫 SQL</text>';
+    out += '</g>';
+    return out;
+  }
+
+  function mcpFigure() {
+    var out = '<g>';
+    out += '<text x="450" y="44" text-anchor="middle" font-size="15" font-weight="700">MCP：把「能做的事」包成一份工具清單</text>';
+
+    out += '<rect x="26" y="86" width="196" height="300" rx="12" fill="var(--decide-soft)" stroke="var(--decide)"/>';
+    out += '<text x="124" y="120" text-anchor="middle" font-size="13" font-weight="700" fill="var(--decide)">Agent</text>';
+    out += '<text x="124" y="146" text-anchor="middle" font-size="11.5" fill="var(--ink-2)">只看得到工具名稱</text>';
+    out += '<text x="124" y="165" text-anchor="middle" font-size="11.5" fill="var(--ink-2)">和每個參數的意義</text>';
+    out += '<rect x="46" y="196" width="156" height="52" rx="8" fill="var(--surface)" stroke="var(--line)"/>';
+    out += '<text x="124" y="218" text-anchor="middle" font-size="11" fill="var(--muted)">它送出的是</text>';
+    out += '<text x="124" y="237" text-anchor="middle" font-size="11.5" class="mono" fill="var(--decide)">search_supplier</text>';
+    out += '<text x="124" y="288" text-anchor="middle" font-size="11.5" fill="var(--ink-2)">不是一段 SQL</text>';
+    out += '<text x="124" y="309" text-anchor="middle" font-size="11.5" fill="var(--ink-2)">不是一個 CSS selector</text>';
+    out += '<text x="124" y="330" text-anchor="middle" font-size="11.5" fill="var(--ink-2)">不是一組帳號密碼</text>';
+
+    out += '<line x1="252" y1="86" x2="252" y2="400" stroke="var(--line)" stroke-dasharray="5 5"/>';
+    out += '<text x="252" y="418" text-anchor="middle" font-size="11" class="mono" fill="var(--muted)">MCP 介面</text>';
+
+    var tools = [
+      ["download_documents", "登入、查詢、下載、進暫存"],
+      ["extract_documents", "xlsx / csv / txt 轉文字"],
+      ["search_supplier", "固定 SQL 查主檔"],
+      ["archive_record", "寫入資料庫並歸檔"],
+      ["notify_manual_review", "寄出人工複核通知"]
+    ];
+    tools.forEach(function (t, i) {
+      var y = 96 + i * 58;
+      out += '<rect x="292" y="' + y + '" width="404" height="46" rx="9" fill="var(--do-soft)" stroke="var(--do)"/>';
+      out += '<text x="308" y="' + (y + 20) + '" font-size="12" class="mono" fill="var(--do)">' + t[0] + '</text>';
+      out += '<text x="308" y="' + (y + 37) + '" font-size="11" fill="var(--ink-2)">' + t[1] + '</text>';
+      out += '<line x1="256" y1="' + (y + 23) + '" x2="288" y2="' + (y + 23) + '" stroke="currentColor" stroke-width="1.3" marker-end="url(#ar)"/>';
+    });
+
+    out += '<rect x="716" y="96" width="160" height="288" rx="10" fill="var(--surface-sub)" stroke="var(--line)"/>';
+    out += '<text x="796" y="126" text-anchor="middle" font-size="12.5" font-weight="700">工具內部</text>';
+    out += '<text x="796" y="152" text-anchor="middle" font-size="11.5" fill="var(--ink-2)">Playwright 腳本</text>';
+    out += '<text x="796" y="174" text-anchor="middle" font-size="11.5" fill="var(--ink-2)">固定 SQL 樣板</text>';
+    out += '<text x="796" y="196" text-anchor="middle" font-size="11.5" fill="var(--ink-2)">參數白名單檢查</text>';
+    out += '<text x="796" y="218" text-anchor="middle" font-size="11.5" fill="var(--ink-2)">檔案搬移與交易</text>';
+    out += '<text x="796" y="254" text-anchor="middle" font-size="11.5" fill="var(--muted)">全部是</text>';
+    out += '<text x="796" y="274" text-anchor="middle" font-size="11.5" fill="var(--muted)">寫死的程式碼</text>';
+    out += '<text x="796" y="312" text-anchor="middle" font-size="11.5" fill="var(--muted)">模型改不了，</text>';
+    out += '<text x="796" y="332" text-anchor="middle" font-size="11.5" fill="var(--muted)">也繞不過去</text>';
+    out += '</g>';
+    return out;
+  }
+
+  function contrastFigure() {
+    var out = '<g>';
+    out += '<text x="450" y="42" text-anchor="middle" font-size="15" font-weight="700">同一份文件，兩種做法</text>';
+    out += '<text x="450" y="64" text-anchor="middle" font-size="12" fill="var(--muted)">品檢報告上只寫「勝宏科技」，沒有供應商代碼</text>';
+
+    function lane(x, title, tone, rows) {
+      var s = '<rect x="' + x + '" y="94" width="392" height="326" rx="12" fill="var(--surface-sub)" stroke="' + tone + '"/>';
+      s += '<text x="' + (x + 196) + '" y="124" text-anchor="middle" font-size="13" font-weight="700" fill="' + tone + '">' + title + '</text>';
+      rows.forEach(function (r, i) {
+        var y = 150 + i * 54;
+        s += '<rect x="' + (x + 22) + '" y="' + y + '" width="348" height="42" rx="8" fill="var(--surface)" stroke="' + (r.hot ? tone : "var(--line)") + '"/>';
+        s += '<text x="' + (x + 38) + '" y="' + (y + 26) + '" font-size="12" fill="' + (r.hot ? tone : "var(--ink-2)") + '">' + r.t + '</text>';
+        if (i < rows.length - 1) {
+          s += '<line x1="' + (x + 196) + '" y1="' + (y + 44) + '" x2="' + (x + 196) + '" y2="' + (y + 52) + '" stroke="currentColor" stroke-width="1.2" marker-end="url(#ar)"/>';
+        }
+      });
+      return s;
+    }
+
+    out += lane(30, "固定流程", "var(--warn)", [
+      { t: "讀 supplier_code" },
+      { t: "欄位是空的" },
+      { t: "沒有其他分支可走", hot: true },
+      { t: "轉人工複核", hot: true },
+      { t: "結果：2 歸檔 / 2 複核" }
+    ]);
+
+    out += lane(478, "Agent", "var(--decide)", [
+      { t: "讀 supplier_code，是空的" },
+      { t: "但文件有廠商名稱", hot: true },
+      { t: "改用名稱查主檔", hot: true },
+      { t: "唯一命中 40891，歸檔", hot: true },
+      { t: "結果：3 歸檔 / 1 複核" }
+    ]);
+    out += '</g>';
+    return out;
+  }
+
+  function boundaryFigure() {
+    var out = '<g>';
+    out += '<text x="450" y="52" text-anchor="middle" font-size="15" font-weight="700">落地的關鍵是這條線畫在哪裡</text>';
+
+    out += '<rect x="40" y="96" width="386" height="300" rx="12" fill="var(--decide-soft)" stroke="var(--decide)"/>';
+    out += '<text x="233" y="132" text-anchor="middle" font-size="14" font-weight="700" fill="var(--decide)">模型決定「做什麼」</text>';
+    ["要處理哪一批文件", "這份文件屬於哪一類", "缺代碼時改用什麼查", "查到多筆時該不該猜", "哪一份需要人來看"].forEach(function (t, i) {
+      out += '<text x="233" y="' + (172 + i * 38) + '" text-anchor="middle" font-size="12.5" fill="var(--ink-2)">' + t + '</text>';
+    });
+
+    out += '<rect x="474" y="96" width="386" height="300" rx="12" fill="var(--do-soft)" stroke="var(--do)"/>';
+    out += '<text x="667" y="132" text-anchor="middle" font-size="14" font-weight="700" fill="var(--do)">程式決定「怎麼做」</text>';
+    ["怎麼登入、點哪個按鈕", "SQL 長什麼樣子", "參數允許哪些字元", "寫進哪張表、搬到哪個目錄", "寄給誰、附件怎麼帶"].forEach(function (t, i) {
+      out += '<text x="667" y="' + (172 + i * 38) + '" text-anchor="middle" font-size="12.5" fill="var(--ink-2)">' + t + '</text>';
+    });
+
+    out += '<line x1="450" y1="96" x2="450" y2="396" stroke="var(--line)" stroke-width="2"/>';
+    out += '<text x="450" y="442" text-anchor="middle" font-size="13" fill="var(--ink-2)">越過這條線的每一次嘗試，都在事後變成一個 bug</text>';
+    out += '</g>';
+    return out;
+  }
+
+  // =========================================================================
+  // Steps
+  // =========================================================================
+
+  var STEPS = [
+    {
+      act: "概念",
+      fig: "今天的做法",
+      concept: manualFigure,
+      title: "先看今天這件事怎麼做",
+      lede: "採購與品保每天要處理二三十份供應商文件。動作本身都不難，難在量大、重複，而且每一步都要人盯著。",
+      points: [
+        { h: "六個動作，每份都要重來一次", p: "登入入口網站、設查詢條件、逐份下載、開檔看內容、查供應商主檔、最後建檔。" },
+        { h: "真正花時間的是對資料", p: "文件上寫的廠商名稱，跟 ERP 主檔裡的正式名稱常常不一樣，得靠人去對。" },
+        { h: "這就是我們想自動化的東西", p: "接下來會看到兩種自動化方式，以及為什麼其中一種撐不住。" }
+      ]
+    },
+    {
+      act: "概念",
+      fig: "固定流程的極限",
+      concept: fixedFlowFigure,
+      title: "為什麼固定流程不夠用",
+      lede: "把六個動作寫成程式並不難，難的是文件不會每次都長一樣。只要出現流程沒預料到的狀況，整條線就停在那裡。",
+      points: [
+        { h: "流程只會照著寫好的順序走", p: "它不會判斷，也不會換個方法。遇到沒寫過的情況就是失敗或轉人工。" },
+        { h: "例外不是少數", p: "缺代碼、名稱不一致、格式不固定、一份自由書寫的信件，這些才是日常。" },
+        { h: "維護成本會滾雪球", p: "每多一種例外就多一段判斷。流程圖越長，越沒有人敢改。" }
+      ],
+      extra: '<div class="callout warn">這不是說固定流程不好。明確、穩定、重複的步驟就該用它。問題出在<b>需要判斷的那幾步</b>。</div>'
+    },
+    {
+      act: "概念",
+      fig: "Agent 迴圈",
+      concept: agentLoopFigure,
+      title: "Agent 是什麼",
+      lede: "Agent 不是一條更長的流程，而是一個迴圈：看目前狀況、決定下一步、呼叫一個工具、讀取結果，再回頭決定下一步。",
+      points: [
+        { h: "每一圈只做一件事", p: "它不會一次規劃完十步，而是做完一步、看到結果，再決定接下來怎麼走。" },
+        { h: "所以它能處理沒預料到的情況", p: "查不到供應商代碼的時候，它會從結果裡看出來，然後換一個查法。" },
+        { h: "但停不停得下來由程式決定", p: "最多 30 步、單一工具 60 秒、重複呼叫同一個工具就中止。這些限制不是拜託模型遵守，是寫在程式裡的。" }
+      ],
+      extra: '<div class="callout decide">關鍵差別：固定流程是<b>我們替它想好每一步</b>，agent 是<b>我們給它能力和邊界，讓它自己決定順序</b>。</div>'
+    },
+    {
+      act: "概念",
+      fig: "MCP 工具層",
+      concept: mcpFigure,
+      title: "MCP 是什麼，為什麼需要它",
+      lede: "MCP 是一套標準介面，把「系統能做的事」包成一份工具清單給模型看。模型只知道有哪些工具、每個參數是什麼意思，看不到裡面怎麼實作。",
+      points: [
+        { h: "模型送出的是工具呼叫，不是程式碼", p: "它說「幫我用這個名稱查供應商」，而不是產生一段 SQL 或一個 CSS selector。" },
+        { h: "工具刻意做得粗顆粒", p: "一個 download_documents 就包含登入、查詢、下載、搬進暫存四件事，模型不需要一步步驅動瀏覽器。" },
+        { h: "這是安全邊界，不只是設計偏好", p: "查詢 API 會執行送進去的任何 SQL，所以 SQL 樣板寫死在工具裡，參數先過白名單。模型碰不到這一層。" }
+      ],
+      extra: '<div class="callout"><b>換個方式理解：</b>MCP 之於 agent，就像 API 文件之於工程師。你給的是能力清單和用法，不是資料庫密碼。</div>'
+    },
+
+    {
+      act: "架構",
+      fig: "全服務架構",
+      arch: {
+        active: ["browser", "frontend", "agentapi", "worker", "postgres", "portal", "llm", "dbq", "mail"],
+        edges: []
+      },
+      title: "整套系統有九個角色",
+      lede: "上面五個是這次 demo 自己建的，跑在同一台機器的 Docker 裡。下面三個是公司既有的內部服務，我們只是呼叫它們。",
+      points: [
+        { h: "frontend", p: "React 主控台。瀏覽器看到的畫面，同時把 /api 反向代理到後端。" },
+        { h: "agent-api", p: ".NET。Agent 迴圈、呼叫 LLM、做文件分類、管理任務狀態。唯一同時牽涉決策與執行的服務。" },
+        { h: "mcp-worker", p: "Python。所有工具的實作：Playwright、檔案解析、主檔查詢、歸檔、寄信。" },
+        { h: "mock-portal", p: "模擬的企業入口網站，代表未來要接的真實系統。" },
+        { h: "postgres", p: "任務紀錄、執行軌跡、分類與對應歷程、歸檔結果。" }
+      ],
+      extra: '<div class="callout"><b>下方三個服務都是現成的。</b>LLM、SQL 查詢 API、Mail API 都已經在公司內部跑著，這個 demo 沒有新增任何基礎設施。</div>'
+    },
+    {
+      act: "架構",
+      fig: "調用關係",
+      arch: {
+        active: ["browser", "frontend", "agentapi", "worker", "postgres", "portal", "llm", "dbq", "mail"],
+        edges: ["browser>frontend", "frontend>agentapi", "agentapi>llm", "agentapi>worker",
+                "agentapi>postgres", "worker>portal", "worker>postgres", "worker>dbq", "worker>mail"]
+      },
+      title: "誰呼叫誰",
+      lede: "整張圖只有一個地方牽涉到模型：agent-api 往下連到 LLM。其餘每一條線都是確定性的程式呼叫。",
+      points: [
+        { h: "瀏覽器只跟 frontend 說話", p: "它解析不到 Docker 內部的服務名稱，所以一律走相對路徑 /api，由 nginx 轉發。" },
+        { h: "agent-api 是 MCP 的用戶端", p: "它向 mcp-worker 要工具清單，再把清單交給模型選。worker 新增工具，這裡不用改。" },
+        { h: "只有 mcp-worker 碰得到外部系統", p: "Playwright 開瀏覽器、查 Oracle、寄信，全部在這一層。帳號密碼也只存在這個行程裡。" },
+        { h: "執行軌跡即時回傳畫面", p: "agent 每完成一步，就透過 SSE 推一筆到瀏覽器，所以畫面是跟著跑的，不是最後才一次顯示。" }
+      ]
+    },
+
+    {
+      act: "實際執行",
+      fig: "取得文件",
+      arch: {
+        active: ["browser", "frontend", "agentapi", "llm", "worker", "portal"],
+        edges: ["browser>frontend", "frontend>agentapi", "agentapi>llm", "agentapi>worker", "worker>portal"]
+      },
+      title: "第一步：先決定要去哪裡拿",
+      lede: "使用者輸入「處理今天 SCM 文件」。入口網站有兩個分頁，SCM 文件和 ESG 問卷，各自有不同的查詢條件和下載路徑。",
+      points: [
+        { h: "這一步就需要判斷", p: "模型讀完任務敘述，選擇 download_documents 而不是 download_esg_surveys，並填入今天的日期和部門。" },
+        { h: "接下來是純執行", p: "工具內部用 Playwright 登入、選單、填條件、查詢、逐份下載、搬進暫存區。模型看不到也管不著。" },
+        { h: "重複呼叫是安全的", p: "暫存區已有同名檔案就略過，不會重抓。" }
+      ],
+      extra: '<div class="callout decide">這裡有一個好對比：把任務改寫成「整理各家廠商回覆的碳排與勞權自評表」，完全沒有 ESG 這個詞。<b>關鍵字比對會抓錯分頁，模型讀得懂意思。</b></div>'
+    },
+    {
+      act: "實際執行",
+      fig: "解析與分類",
+      arch: {
+        active: ["agentapi", "llm", "worker"],
+        edges: ["agentapi>worker", "agentapi>llm"]
+      },
+      title: "第二步：看懂每一份文件",
+      lede: "四份文件一次解析成文字，然後逐份分類，抽出供應商、料號、單據號碼。",
+      points: [
+        { h: "分類刻意放在 agent-api，不做成工具", p: "這樣 JSON 格式、驗證、重試都在程式控制下。模型只負責判斷類別，程式負責檢查答案能不能用。" },
+        { h: "文件內容不會回傳給模型", p: "全文快取在後端，agent 只看到檔名和字數。這讓四份文件的處理維持在十幾步，而不是被文字塞爆。" },
+        { h: "分類是用結構判斷，不是用主題", p: "一封談到來料異常的信件，主題像品檢報告，但它沒有欄位也沒有單號，所以歸為 Unknown。" }
+      ],
+      extra: '<div class="callout warn">實測發現：模型自己回報的信心值幾乎都是 1.0，<b>包括它答錯那次</b>。所以要不要轉人工是規則說了算，信心值只是最後一道參考。</div>'
+    },
+    {
+      act: "實際執行",
+      fig: "對應主檔",
+      arch: {
+        active: ["agentapi", "worker", "postgres", "dbq"],
+        edges: ["agentapi>worker", "worker>postgres", "worker>dbq"]
+      },
+      title: "第三步：把文件對到 ERP 主檔",
+      lede: "文件上的供應商，要對應到 ERP 裡的正式代碼和名稱。這一步有兩個資料來源，可以現場切換。",
+      points: [
+        { h: "mock 與 real 回答一致", p: "mock 主檔用的是真實的 EBS 供應商，所以切換模式是在證明介面可用，而不是換一套劇本。" },
+        { h: "模型永遠不產生 SQL", p: "SQL 樣板寫死，參數先檢查有沒有引號、分號、註解符號。查詢 API 會執行任何送進去的 SQL，所以這道關卡是承重的。" },
+        { h: "查詢結果會標明是否唯一", p: "回傳 unique、ambiguous 或 not_found。只有 unique 算對應成功，這讓後面的判斷有明確依據。" }
+      ]
+    },
+    {
+      act: "實際執行",
+      fig: "例外 A",
+      concept: contrastFigure,
+      title: "例外一：缺代碼，但有名稱",
+      lede: "品檢報告上只寫「勝宏科技」，沒有供應商代碼。固定流程到這裡就停了，agent 換了個方法。",
+      points: [
+        { h: "模型從結果裡看出問題", p: "它讀到 supplier_code 是空的，但 supplier_name 有值，於是改用名稱查詢。" },
+        { h: "唯一命中就繼續", p: "查到 40891 勝宏科技（惠州），對應成立，文件歸檔。這一份原本會變成人工工作。" },
+        { h: "歸檔存的是主檔的正式名稱", p: "不是文件上印的簡稱。所以後續報表對得起來。" }
+      ],
+      extra: '<div class="callout decide">這就是 agent 的價值：<b>沒有人事先寫過「缺代碼就改用名稱查」這條規則</b>，它是從工具清單和結果自己推出來的。</div>'
+    },
+    {
+      act: "實際執行",
+      fig: "例外 B",
+      arch: {
+        active: ["agentapi", "llm", "worker", "postgres", "mail"],
+        edges: ["agentapi>llm", "agentapi>worker", "worker>postgres", "worker>mail"]
+      },
+      title: "例外二：查到兩家同名的公司",
+      lede: "勝宏科技在 EBS 裡其實有兩家：惠州和泰國，今年都有採購單。同樣一份文件，這次名稱查詢回傳兩筆。",
+      points: [
+        { h: "Agent 沒有猜", p: "它回報「找到 2 個候選：勝宏科技(惠州)、勝宏科技（泰國）」，然後轉人工複核並寄出通知。" },
+        { h: "這比上一頁更重要", p: "上一頁證明它會自己想辦法，這一頁證明它知道什麼時候不該自作主張。" },
+        { h: "兩次的查詢都留在紀錄裡", p: "包含查不到和查到多筆的那幾次。這些才是「為什麼轉人工」的證據。" }
+      ],
+      extra: '<div class="callout stop">這個歧義是真的。<b>惠州和泰國兩家公司都存在於 EBS</b>，不是為了 demo 捏造出來的例子。</div>'
+    },
+    {
+      act: "收斂",
+      fig: "決策與執行的界線",
+      concept: boundaryFigure,
+      title: "這套東西能不能落地，看這條線",
+      lede: "整個專案只有一條核心原則：模型決定做什麼，程式決定怎麼做。每一次想跨過這條線，事後都會變成一個問題。",
+      points: [
+        { h: "實際踩過的例子一", p: "曾經讓模型在歸檔時把分類結果一起傳回來，它傳了一個空物件，資料庫欄位全空。改成由程式從任務狀態填入就好了。" },
+        { h: "實際踩過的例子二", p: "讓模型重打廠商名稱時，它把「勝宏科技」打成「涵孚科技」，查詢落空。改成讓它指定檔名，由程式帶入原值。" },
+        { h: "同一個教訓", p: "模型很適合做判斷，不適合當資料的搬運工。凡是它已經看過的值，就不要再讓它複述一次。" }
+      ],
+      extra: '<table class="cmp"><thead><tr><th>情境</th><th>固定流程</th><th>Agent</th></tr></thead><tbody>' +
+             '<tr><td>SCM 文件（四份）</td><td class="bad">2 歸檔 / 2 複核</td><td class="ok">3 歸檔 / 1 複核</td></tr>' +
+             '<tr><td>同名廠商兩家</td><td class="bad">轉人工（因為缺代碼）</td><td class="ok">轉人工（因為無法判斷）</td></tr>' +
+             '<tr><td>任務換句話說</td><td class="bad">抓錯分頁</td><td class="ok">抓對分頁</td></tr>' +
+             '</tbody></table>'
+    }
+  ];
+
+  // =========================================================================
+  // Architecture renderer
+  // =========================================================================
+
+  function nodeTone(kind) {
+    if (kind === "ext") return { fill: "var(--external-soft)", stroke: "var(--external)", ink: "var(--external)" };
+    if (kind === "do") return { fill: "var(--do-soft)", stroke: "var(--do)", ink: "var(--do)" };
+    if (kind === "mix") return { fill: "var(--decide-soft)", stroke: "var(--decide)", ink: "var(--decide)" };
+    return { fill: "var(--surface-sub)", stroke: "var(--line)", ink: "var(--ink)" };
+  }
+
+  /* CJK glyphs are roughly twice the width of Latin ones at the same size, so
+     a plain character count sizes the label background wrong. */
+  function labelWidth(text, size) {
+    var w = 0;
+    for (var i = 0; i < text.length; i++) {
+      w += text.charCodeAt(i) > 0x2e80 ? size * 1.02 : size * 0.56;
+    }
+    return w + 12;
+  }
+
+  function pathFrom(pts) {
+    return pts.map(function (p, i) { return (i ? "L " : "M ") + p[0] + " " + p[1]; }).join(" ");
+  }
+
+  function archFigure(spec) {
+    var active = spec.active || [];
+    var edges = spec.edges || [];
+    var out = "";
+
+    BANDS.forEach(function (b) {
+      out += '<rect x="' + b.x + '" y="' + b.y + '" width="' + b.w + '" height="' + b.h +
+             '" rx="14" fill="none" stroke="var(--line)" stroke-dasharray="6 5"/>';
+      out += '<text x="' + (b.x + 16) + '" y="' + (b.y + 22) + '" font-size="11" fill="var(--muted)">' + b.label + '</text>';
+    });
+
+    edges.forEach(function (id) {
+      var e = EDGES[id];
+      if (!e) return;
+      var color = e.tone === "decide" ? "var(--decide)" : e.tone === "ext" ? "var(--external)" : "currentColor";
+      var marker = e.tone === "decide" ? "url(#ar-decide)" : e.tone === "ext" ? "url(#ar-ext)" : "url(#ar)";
+      out += '<path d="' + pathFrom(e.pts) + '" fill="none" stroke="' + color +
+             '" stroke-width="1.6" stroke-linejoin="round" marker-end="' + marker + '"/>';
+      if (e.label) {
+        var w = labelWidth(e.label, 10.5);
+        out += '<rect x="' + (e.lp[0] - w / 2) + '" y="' + (e.lp[1] - 10) + '" width="' + w +
+               '" height="20" rx="5" fill="var(--surface)"/>';
+        out += '<text x="' + e.lp[0] + '" y="' + (e.lp[1] + 4) + '" text-anchor="middle" font-size="10.5" fill="' +
+               (e.tone ? color : "var(--muted)") + '">' + e.label + '</text>';
+      }
+    });
+
+    Object.keys(NODES).forEach(function (id) {
+      var n = NODES[id], t = nodeTone(n.kind);
+      var on = active.indexOf(id) >= 0;
+      out += '<g class="node-box' + (on ? "" : " dim") + '">';
+      out += '<rect x="' + n.x + '" y="' + n.y + '" width="' + n.w + '" height="' + n.h + '" rx="10" fill="' +
+             t.fill + '" stroke="' + t.stroke + '" stroke-width="' + (on ? 1.6 : 1) + '"/>';
+      out += '<text x="' + (n.x + n.w / 2) + '" y="' + (n.y + (n.sub ? 27 : 32)) +
+             '" text-anchor="middle" font-size="12.5" font-weight="700" fill="' + t.ink + '">' + n.title + '</text>';
+      if (n.sub) {
+        out += '<text x="' + (n.x + n.w / 2) + '" y="' + (n.y + 45) +
+               '" text-anchor="middle" font-size="10" class="mono" fill="var(--muted)">' + n.sub + '</text>';
+      }
+      out += '</g>';
+    });
+
+    return out;
+  }
+
+  var DEFS =
+    '<defs>' +
+    '<marker id="ar" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">' +
+      '<path d="M 0 0 L 10 5 L 0 10 z" fill="currentColor"/></marker>' +
+    '<marker id="ar-decide" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">' +
+      '<path d="M 0 0 L 10 5 L 0 10 z" fill="var(--decide)"/></marker>' +
+    '<marker id="ar-ext" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">' +
+      '<path d="M 0 0 L 10 5 L 0 10 z" fill="var(--external)"/></marker>' +
+    '<marker id="ar-stop" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">' +
+      '<path d="M 0 0 L 10 5 L 0 10 z" fill="var(--stop)"/></marker>' +
+    '</defs>';
+
+  // =========================================================================
+  // View
+  // =========================================================================
+
+  var el = {
+    fig: document.getElementById("figure"),
+    canvas: document.getElementById("canvas"),
+    title: document.getElementById("title"),
+    lede: document.getElementById("lede"),
+    points: document.getElementById("points"),
+    extra: document.getElementById("extra"),
+    act: document.getElementById("actLabel"),
+    actName: document.getElementById("actName"),
+    figLabel: document.getElementById("figLabel"),
+    stepNo: document.getElementById("stepNo"),
+    stepTotal: document.getElementById("stepTotal"),
+    steps: document.getElementById("steps"),
+    prev: document.getElementById("prev"),
+    next: document.getElementById("next"),
+    zoomLevel: document.getElementById("zoomLevel")
+  };
+
+  var index = 0;
+  var view = { k: 1, x: 0, y: 0 };
+
+  function applyView() {
+    var g = el.fig.querySelector("#viewport");
+    if (g) g.setAttribute("transform", "translate(" + view.x + "," + view.y + ") scale(" + view.k + ")");
+    el.zoomLevel.textContent = Math.round(view.k * 100) + "%";
+  }
+
+  function resetView() { view = { k: 1, x: 0, y: 0 }; applyView(); }
+
+  function zoomBy(factor, cx, cy) {
+    var next = Math.min(3.2, Math.max(0.45, view.k * factor));
+    if (cx === undefined) { cx = W / 2; cy = H / 2; }
+    view.x = cx - (cx - view.x) * (next / view.k);
+    view.y = cy - (cy - view.y) * (next / view.k);
+    view.k = next;
+    applyView();
+  }
+
+  function render() {
+    var s = STEPS[index];
+
+    el.fig.setAttribute("viewBox", "0 0 " + W + " " + H);
+    el.fig.setAttribute("preserveAspectRatio", "xMidYMid meet");
+    el.fig.setAttribute("aria-label", s.title);
+    el.fig.innerHTML = DEFS + '<g id="viewport">' + (s.concept ? s.concept() : archFigure(s.arch)) + "</g>";
+    applyView();
+
+    el.act.textContent = s.act;
+    el.actName.textContent = s.act;
+    el.figLabel.textContent = s.fig;
+    el.title.textContent = s.title;
+    el.lede.textContent = s.lede;
+    el.stepNo.textContent = String(index + 1);
+
+    el.points.innerHTML = s.points.map(function (p) {
+      return '<div class="point"><h3>' + p.h + "</h3><p>" + p.p + "</p></div>";
+    }).join("");
+
+    el.extra.innerHTML = s.extra || "";
+
+    Array.prototype.forEach.call(el.steps.querySelectorAll("button"), function (b, i) {
+      if (i === index) b.setAttribute("aria-current", "step");
+      else b.removeAttribute("aria-current");
+    });
+
+    el.prev.disabled = index === 0;
+    el.next.disabled = index === STEPS.length - 1;
+    el.next.textContent = index === STEPS.length - 1 ? "已到最後一步" : "下一步 →";
+  }
+
+  function go(i) {
+    index = Math.min(STEPS.length - 1, Math.max(0, i));
+    resetView();
+    render();
+  }
+
+  // step rail, with a divider wherever the act changes
+  (function buildRail() {
+    var html = "";
+    STEPS.forEach(function (s, i) {
+      if (i > 0 && STEPS[i - 1].act !== s.act) html += '<span class="sep"></span>';
+      html += '<button type="button" data-i="' + i + '" title="' + s.title + '">' + (i + 1) + "</button>";
+    });
+    el.steps.innerHTML = html;
+    el.stepTotal.textContent = String(STEPS.length);
+    el.steps.addEventListener("click", function (e) {
+      var b = e.target.closest("button");
+      if (b) go(parseInt(b.dataset.i, 10));
+    });
+  })();
+
+  el.prev.addEventListener("click", function () { go(index - 1); });
+  el.next.addEventListener("click", function () { go(index + 1); });
+  document.getElementById("zoomIn").addEventListener("click", function () { zoomBy(1.25); });
+  document.getElementById("zoomOut").addEventListener("click", function () { zoomBy(0.8); });
+  document.getElementById("zoomReset").addEventListener("click", resetView);
+
+  document.addEventListener("keydown", function (e) {
+    if (e.target.matches("input, textarea")) return;
+    if (e.key === "ArrowRight" || e.key === "PageDown") { go(index + 1); e.preventDefault(); }
+    else if (e.key === "ArrowLeft" || e.key === "PageUp") { go(index - 1); e.preventDefault(); }
+    else if (e.key === "+" || e.key === "=") { zoomBy(1.25); }
+    else if (e.key === "-" || e.key === "_") { zoomBy(0.8); }
+    else if (e.key === "0") { resetView(); }
+  });
+
+  // wheel zoom around the cursor, drag to pan
+  el.canvas.addEventListener("wheel", function (e) {
+    e.preventDefault();
+    var r = el.canvas.getBoundingClientRect();
+    var scale = W / r.width;
+    zoomBy(e.deltaY < 0 ? 1.12 : 0.89, (e.clientX - r.left) * scale, (e.clientY - r.top) * scale);
+  }, { passive: false });
+
+  (function enableDrag() {
+    var dragging = false, sx = 0, sy = 0, ox = 0, oy = 0;
+    el.canvas.addEventListener("pointerdown", function (e) {
+      dragging = true; sx = e.clientX; sy = e.clientY; ox = view.x; oy = view.y;
+      el.canvas.classList.add("dragging");
+      el.canvas.setPointerCapture(e.pointerId);
+    });
+    el.canvas.addEventListener("pointermove", function (e) {
+      if (!dragging) return;
+      var r = el.canvas.getBoundingClientRect();
+      var scale = W / r.width;
+      view.x = ox + (e.clientX - sx) * scale;
+      view.y = oy + (e.clientY - sy) * scale;
+      applyView();
+    });
+    ["pointerup", "pointercancel"].forEach(function (ev) {
+      el.canvas.addEventListener(ev, function (e) {
+        dragging = false;
+        el.canvas.classList.remove("dragging");
+        try { el.canvas.releasePointerCapture(e.pointerId); } catch (_) {}
+      });
+    });
+  })();
+
+  render();
+})();
+</script>
