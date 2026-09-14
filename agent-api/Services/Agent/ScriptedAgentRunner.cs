@@ -45,13 +45,13 @@ public sealed class ScriptedAgentRunner(
             {
                 ["year"] = DateTime.Now.Year.ToString(),
                 ["status"] = "ALL",
-            }, "Fetching ESG questionnaires from the portal", ct)
+            }, "從入口網站取得 ESG 問卷", ct)
             : await CallAsync(context, "download_documents", new JsonObject
             {
                 ["date"] = today,
                 ["department"] = "SCM",
                 ["document_type"] = "ALL",
-            }, "Fetching today's SCM documents from the portal", ct);
+            }, "從入口網站取得今天的 SCM 文件", ct);
 
         var files = (downloaded["files"] as JsonArray)?
             .Select(f => f?.GetValue<string>())
@@ -61,15 +61,15 @@ public sealed class ScriptedAgentRunner(
 
         if (files.Count == 0)
         {
-            context.AddStep("summary", "No documents found", "The portal returned no documents for today.");
+            context.AddStep("summary", "沒有找到文件", "入口網站今天沒有回傳任何文件。");
             task.State = TaskState.Completed;
-            task.Summary = "No documents to process.";
+            task.Summary = "沒有需要處理的文件。";
             return;
         }
 
         // 2. Parse everything in one call
         await CallAsync(context, "extract_documents", new JsonObject(),
-            $"Reading {files.Count} document(s)", ct);
+            $"解析 {files.Count} 份文件", ct);
 
         // 3. Classify, map and resolve each document. One document failing must
         //    not abandon the rest: record it as failed and carry on, so a demo
@@ -89,7 +89,7 @@ public sealed class ScriptedAgentRunner(
                 outcome.Status = "failed";
                 outcome.ReviewReason = ex.Message;
 
-                context.AddStep("error", $"Could not process {filename}", ex.Message, success: false);
+                context.AddStep("error", $"{filename} 處理失敗", ex.Message, success: false);
             }
         }
 
@@ -122,7 +122,7 @@ public sealed class ScriptedAgentRunner(
     {
         var classification = await CallAsync(context, ToolRegistry.ClassifyTool,
             new JsonObject { ["filename"] = filename },
-            $"Classifying {filename}", ct);
+            $"分類 {filename}", ct);
 
         var outcome = context.Outcome(filename);
 
@@ -142,7 +142,7 @@ public sealed class ScriptedAgentRunner(
         {
             var lookup = await CallAsync(context, "search_supplier",
                 new JsonObject { ["supplier_code"] = code },
-                $"Looking up supplier {code}", ct);
+                $"查詢供應商 {code}", ct);
 
             if (lookup["match"]?.GetValue<string>() == "unique")
             {
@@ -175,7 +175,7 @@ public sealed class ScriptedAgentRunner(
         {
             var lookup = await CallAsync(context, "search_part",
                 new JsonObject { ["part_no"] = partNo },
-                $"Looking up part {partNo}", ct);
+                $"查詢料號 {partNo}", ct);
 
             if (lookup["match"]?.GetValue<string>() == "unique")
                 part = (lookup["results"] as JsonArray)?.FirstOrDefault()?.DeepClone();
@@ -187,7 +187,7 @@ public sealed class ScriptedAgentRunner(
             ["classification"] = classification.DeepClone(),
             ["mapping"] = new JsonObject { ["supplier"] = supplier, ["part"] = part },
             ["task_id"] = context.Task.Id,
-        }, $"Archiving {filename}", ct);
+        }, $"歸檔 {filename}", ct);
 
         outcome.Status = "archived";
     }
@@ -206,7 +206,7 @@ public sealed class ScriptedAgentRunner(
             ["summary"] = $"Category: {outcome.Category ?? "unclassified"}. " +
                           $"Supplier: {outcome.SupplierName ?? outcome.SupplierCode ?? "unknown"}.",
             ["task_id"] = context.Task.Id,
-        }, $"Sending {filename} to manual review", ct);
+        }, $"{filename} 轉人工複核", ct);
 
         outcome.Notified = result["notified"]?.GetValue<bool>() ?? false;
     }
@@ -236,7 +236,8 @@ public sealed class ScriptedAgentRunner(
                 durationMs: (int)sw.ElapsedMilliseconds,
                 decidedBy: "script",
                 note: _pendingNote,
-                noteTone: _pendingNote is null ? null : "limit");
+                noteTone: _pendingNote is null ? null : "limit",
+                executedBy: toolName == ToolRegistry.ClassifyTool ? "model" : "mcp");
 
             _pendingNote = null;
 
@@ -248,10 +249,10 @@ public sealed class ScriptedAgentRunner(
         catch (OperationCanceledException) when (!ct.IsCancellationRequested)
         {
             sw.Stop();
-            context.AddStep("error", intent, $"{toolName} timed out after {options.ToolTimeoutSec}s",
+            context.AddStep("error", intent, $"{toolName} 超過 {options.ToolTimeoutSec} 秒未回應",
                 toolName: toolName, arguments: args.DeepClone(), success: false,
                 durationMs: (int)sw.ElapsedMilliseconds);
-            throw new TimeoutException($"{toolName} timed out after {options.ToolTimeoutSec}s.");
+            throw new TimeoutException($"{toolName} 超過 {options.ToolTimeoutSec} 秒未回應。");
         }
     }
 
@@ -263,17 +264,16 @@ public sealed class ScriptedAgentRunner(
         var review = docs.Count(d => d.Status == "manual_review");
         var failed = docs.Count(d => d.Status == "failed");
 
-        var section = LooksLikeEsg(task.Prompt) ? "ESG questionnaires" : "SCM";
+        var section = LooksLikeEsg(task.Prompt) ? "ESG 問卷" : "SCM 文件";
         task.Summary =
-            $"Processed {docs.Count} document(s) from {section}. " +
-            $"{archived} archived automatically, {review} sent to manual review" +
-            (failed > 0 ? $", {failed} could not be processed." : ".");
+            $"{section}共處理 {docs.Count} 份文件：{archived} 份自動歸檔，{review} 份轉人工複核" +
+            (failed > 0 ? $"，{failed} 份處理失敗。" : "。");
 
         task.State = failed > 0 ? TaskState.Failed
                    : review > 0 ? TaskState.ManualReview
                    : TaskState.Completed;
 
-        context.AddStep("summary", "Task complete", task.Summary, success: failed == 0);
+        context.AddStep("summary", "任務完成", task.Summary, success: failed == 0);
         log.LogInformation("scripted run finished: {Archived} archived, {Review} review, {Failed} failed",
             archived, review, failed);
     }

@@ -48,6 +48,16 @@ public sealed class TaskStep
 
     /// <summary>Whether Note marks a good outcome or a limitation.</summary>
     public string? NoteTone { get; init; }
+
+    /// <summary>
+    /// Which layer carried the step out: "mcp" for a tool on the MCP worker,
+    /// "model" for classification, which runs in agent-api against the LLM.
+    ///
+    /// Separate from DecidedBy on purpose. Every tool step in agent mode was
+    /// chosen by the model, but only classification is performed by it, and the
+    /// audience cannot tell those apart unless the trace says so.
+    /// </summary>
+    public string? ExecutedBy { get; init; }
 }
 
 /// <summary>What happened to one document as it moved through the pipeline.</summary>

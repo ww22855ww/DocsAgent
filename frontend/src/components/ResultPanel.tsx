@@ -1,10 +1,10 @@
 import type { DocumentOutcome, TaskFinal } from '../types'
 
 const STATUS_LABEL: Record<string, string> = {
-  archived: 'Archived',
-  manual_review: 'Manual review',
-  failed: 'Failed',
-  pending: 'Pending',
+  archived: '已歸檔',
+  manual_review: '人工複核',
+  failed: '處理失敗',
+  pending: '待處理',
 }
 
 function DocumentRow({ doc }: { doc: DocumentOutcome }) {
@@ -20,7 +20,7 @@ function DocumentRow({ doc }: { doc: DocumentOutcome }) {
       <td>{supplier}</td>
       <td>
         <span className={`pill ${doc.status}`}>{STATUS_LABEL[doc.status] ?? doc.status}</span>
-        {doc.status === 'manual_review' && doc.notified && <span className="sent">mail sent</span>}
+        {doc.status === 'manual_review' && doc.notified && <span className="sent">已寄出通知</span>}
       </td>
     </tr>
   )
@@ -34,26 +34,26 @@ export default function ResultPanel({ final }: { final: TaskFinal }) {
     <>
       <section className="card">
         <div className="card-head">
-          <h2>Result</h2>
+          <h2>結果</h2>
           <span className={`state-pill ${final.state.toLowerCase()}`}>{final.state}</span>
         </div>
 
         <div className="tiles">
           <div className="tile">
             <span className="tile-value">{counts.downloaded}</span>
-            <span className="tile-label">Downloaded</span>
+            <span className="tile-label">取得文件</span>
           </div>
           <div className="tile">
             <span className="tile-value">{counts.archived}</span>
-            <span className="tile-label">Archived</span>
+            <span className="tile-label">已歸檔</span>
           </div>
           <div className="tile warn">
             <span className="tile-value">{counts.manualReview}</span>
-            <span className="tile-label">Manual review</span>
+            <span className="tile-label">人工複核</span>
           </div>
           <div className="tile">
             <span className="tile-value">{(final.durationMs / 1000).toFixed(0)}s</span>
-            <span className="tile-label">Duration</span>
+            <span className="tile-label">總耗時</span>
           </div>
         </div>
 
@@ -68,7 +68,7 @@ export default function ResultPanel({ final }: { final: TaskFinal }) {
         <table className="documents">
           <thead>
             <tr>
-              <th>File</th><th>Category</th><th>Document No</th><th>Supplier</th><th>Outcome</th>
+              <th>檔案</th><th>類別</th><th>單據號碼</th><th>供應商</th><th>處理結果</th>
             </tr>
           </thead>
           <tbody>
@@ -79,11 +79,11 @@ export default function ResultPanel({ final }: { final: TaskFinal }) {
 
       {reviewed.length > 0 && (
         <section className="card review">
-          <h2>Manual review</h2>
+          <h2>人工複核</h2>
           {reviewed.map(d => (
             <div className="review-item" key={d.filename}>
               <span className="mono">{d.filename}</span>
-              <p>{d.reviewReason ?? 'Needs a human.'}</p>
+              <p>{d.reviewReason ?? '需要人工判斷。'}</p>
             </div>
           ))}
         </section>
@@ -91,7 +91,7 @@ export default function ResultPanel({ final }: { final: TaskFinal }) {
 
       {(final.summary || final.error) && (
         <section className={`card ${final.error ? 'failure' : 'summary'}`}>
-          <h2>{final.error ? 'Failure' : 'Agent summary'}</h2>
+          <h2>{final.error ? '失敗' : 'Agent 摘要'}</h2>
           <p className="summary-text">{final.error ?? final.summary}</p>
         </section>
       )}

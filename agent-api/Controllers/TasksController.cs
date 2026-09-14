@@ -54,6 +54,7 @@ public sealed class TasksController(TaskService tasks) : ControllerBase
                 s.DurationMs,
                 s.At,
                 s.DecidedBy,
+                s.ExecutedBy,
                 s.Note,
                 s.NoteTone,
             }),

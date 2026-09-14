@@ -15,8 +15,8 @@ export default function TaskForm({
   return (
     <section className="card">
       <div className="card-head">
-        <h2>Task</h2>
-        <div className="mode-toggle" role="group" aria-label="Agent mode">
+        <h2>任務</h2>
+        <div className="mode-toggle" role="group" aria-label="執行模式">
           <button
             type="button"
             className={mode === 'scripted' ? 'active' : ''}
@@ -38,8 +38,8 @@ export default function TaskForm({
 
       <p className="mode-hint">
         {mode === 'llm'
-          ? 'The model decides which tool to call at each step.'
-          : 'A fixed sequence, for comparison. No decisions are made by the model.'}
+          ? '每一步要呼叫哪個工具，由模型讀完上一步的結果後自己決定。'
+          : '固定順序，用來對照。模型不參與任何決定。'}
       </p>
 
       <form
@@ -52,10 +52,10 @@ export default function TaskForm({
           onChange={e => onPromptChange(e.target.value)}
           placeholder="處理今天 SCM 文件"
           disabled={running}
-          aria-label="Task"
+          aria-label="任務"
         />
         <button type="submit" className="primary" disabled={running || !prompt.trim()}>
-          {running ? 'Running…' : 'Execute'}
+          {running ? '執行中…' : '執行'}
         </button>
       </form>
 

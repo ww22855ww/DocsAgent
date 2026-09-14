@@ -146,7 +146,7 @@ public sealed class LlmAgentRunner(
             if (repeats >= RepeatLimit)
             {
                 throw new InvalidOperationException(
-                    $"Agent repeated the same call to {name} {repeats + 1} times and is not making progress.");
+                    $"Agent 連續 {repeats + 1} 次用相同參數呼叫 {name}，沒有進展，已中止。");
             }
 
             messages.Add(new LlmMessage("assistant", null) { ToolCalls = [call] });
@@ -161,7 +161,7 @@ public sealed class LlmAgentRunner(
         }
 
         throw new InvalidOperationException(
-            $"Agent reached the {options.MaxSteps}-step limit without finishing.");
+            $"Agent 用滿 {options.MaxSteps} 步仍未結束，已中止。");
     }
 
     private async Task<(JsonNode ForModel, bool Ok)> ExecuteAsync(
@@ -184,7 +184,7 @@ public sealed class LlmAgentRunner(
                 ["status"] = "error",
                 ["error"] = $"There is no tool called '{name}'. Available tools: {known}",
             };
-            context.AddStep("error", $"Unknown tool: {name}", thought: thought,
+            context.AddStep("error", $"不存在的工具：{name}", thought: thought,
                 toolName: name, arguments: args.DeepClone(), result: error.DeepClone(), success: false);
             return (error, false);
         }
@@ -236,7 +236,8 @@ public sealed class LlmAgentRunner(
             durationMs: (int)sw.ElapsedMilliseconds,
             decidedBy: "model",
             note: note,
-            noteTone: tone);
+            noteTone: tone,
+            executedBy: name == ToolRegistry.ClassifyTool ? "model" : "mcp");
 
         return (forModel, ok);
     }
@@ -307,14 +308,14 @@ public sealed class LlmAgentRunner(
         if (unresolved > 0)
         {
             throw new InvalidOperationException(
-                $"Agent stopped with {unresolved} document(s) neither archived nor sent to manual review.");
+                $"Agent 停止時仍有 {unresolved} 份文件既未歸檔也未轉人工複核。");
         }
 
         task.Summary = Vet(context, closing)
-            ?? $"處理 {docs.Count} 份文件：{archived} 份歸檔，{review} 份送人工複核。";
+            ?? $"處理 {docs.Count} 份文件：{archived} 份歸檔，{review} 份轉人工複核。";
 
         task.State = review > 0 ? TaskState.ManualReview : TaskState.Completed;
-        context.AddStep("summary", "Task complete", task.Summary);
+        context.AddStep("summary", "任務完成", task.Summary);
         log.LogInformation("agent run finished in {Steps} steps: {Archived} archived, {Review} review",
             task.Steps.Count, archived, review);
     }
@@ -363,7 +364,7 @@ public sealed class LlmAgentRunner(
                 var o = context.Outcome(file!);
                 value = o.SupplierCode ?? o.SupplierName;
             }
-            return string.IsNullOrWhiteSpace(value) ? "Looking up supplier" : $"Looking up supplier {value}";
+            return string.IsNullOrWhiteSpace(value) ? "查詢供應商" : $"查詢供應商 {value}";
         }
 
         string Part()
@@ -371,20 +372,20 @@ public sealed class LlmAgentRunner(
             var value = args["part_no"]?.GetValue<string>();
             if (string.IsNullOrWhiteSpace(value) && !string.IsNullOrWhiteSpace(file))
                 value = context.Outcome(file!).PartNo;
-            return string.IsNullOrWhiteSpace(value) ? "Looking up part" : $"Looking up part {value}";
+            return string.IsNullOrWhiteSpace(value) ? "查詢料號" : $"查詢料號 {value}";
         }
 
         return name switch
         {
-            "download_documents" => $"Downloading {args["department"]?.GetValue<string>() ?? "SCM"} documents",
-            "download_esg_surveys" => "Downloading ESG questionnaires",
-            "extract_documents" => "Reading staged documents",
-            "list_staging_files" => "Checking staging",
-            ToolRegistry.ClassifyTool => $"Classifying {file}",
+            "download_documents" => $"下載 {args["department"]?.GetValue<string>() ?? "SCM"} 文件",
+            "download_esg_surveys" => "下載 ESG 問卷",
+            "extract_documents" => "解析暫存區的文件",
+            "list_staging_files" => "查看暫存區",
+            ToolRegistry.ClassifyTool => $"分類 {file}",
             "search_supplier" => Supplier(),
             "search_part" => Part(),
-            "archive_record" => $"Archiving {file}",
-            "notify_manual_review" => $"Sending {file} to manual review",
+            "archive_record" => $"歸檔 {file}",
+            "notify_manual_review" => $"{file} 轉人工複核",
             _ => name,
         };
     }

@@ -38,11 +38,13 @@ public sealed class AgentContext(AgentTask task, Action<TaskStep>? onStep = null
         int durationMs = 0,
         string? decidedBy = null,
         string? note = null,
-        string? noteTone = null)
+        string? noteTone = null,
+        string? executedBy = null)
     {
         var step = new TaskStep
         {
             DecidedBy = decidedBy,
+            ExecutedBy = executedBy,
             Note = note,
             NoteTone = noteTone,
             Index = task.Steps.Count + 1,

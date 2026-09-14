@@ -7,10 +7,10 @@ import Timeline from './components/Timeline'
 import type { Step, TaskFinal } from './types'
 
 const WAITING_LABEL: Record<string, string> = {
-  WaitingLlm: 'Waiting for the model…',
-  WaitingTool: 'Running a tool…',
-  Running: 'Working…',
-  Created: 'Starting…',
+  WaitingLlm: '等待模型回應…',
+  WaitingTool: '執行工具中…',
+  Running: '處理中…',
+  Created: '啟動中…',
 }
 
 export default function App() {
@@ -74,8 +74,7 @@ export default function App() {
         <div>
           <h1>Agentic Document Processor</h1>
           <p className="sub">
-            Natural-language task, browser automation, classification and mapping,
-            end to end.
+            一句話的任務，從登入入口網站、下載、解析分類，到對應主檔與歸檔，全程自動。
           </p>
         </div>
         {health && (

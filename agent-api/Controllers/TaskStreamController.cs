@@ -121,6 +121,7 @@ public sealed class TaskStreamController(TaskService tasks, ILogger<TaskStreamCo
         s.DurationMs,
         s.At,
         s.DecidedBy,
+        s.ExecutedBy,
         s.Note,
         s.NoteTone,
     };

@@ -122,10 +122,14 @@ public sealed class LlmClient(
         {
             var node = new JsonObject { ["role"] = m.Role };
 
-            // An assistant turn that called tools carries null content plus the
-            // calls; the API rejects the history if either half is dropped.
-            if (m.Content is not null) node["content"] = m.Content;
-            else if (m.ToolCalls is null) node["content"] = "";
+            // Always send content, even empty. The OpenAI spec lets an assistant
+            // message omit it when tool_calls is present, and the internal
+            // gateway usually accepts that, but one of the instances behind it
+            // validates strictly and rejects the whole history with
+            // "messages.2.content Field required". Sending "" satisfies both,
+            // and a failure here is expensive: the request 400s, the fallback
+            // provider is tried, and a demo stalls for minutes.
+            node["content"] = m.Content ?? "";
 
             if (m.ToolCallId is not null) node["tool_call_id"] = m.ToolCallId;
 

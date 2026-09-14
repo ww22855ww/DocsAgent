@@ -70,10 +70,10 @@ public sealed class TaskService(
 
         try
         {
-            context.AddStep("agent", $"Task accepted ({task.Mode} mode)", task.Prompt);
+            context.AddStep("agent", $"任務已接收（{task.Mode} 模式）", task.Prompt);
 
             if (_runGate.CurrentCount == 0)
-                context.AddStep("agent", "Waiting for the running task to finish");
+                context.AddStep("agent", "等待前一個任務結束");
 
             await _runGate.WaitAsync(cts.Token);
             try
@@ -89,15 +89,15 @@ public sealed class TaskService(
         catch (OperationCanceledException)
         {
             task.State = TaskState.Failed;
-            task.Error = $"Task exceeded the {options.TaskTimeoutMin}-minute limit.";
-            context.AddStep("error", "Task timed out", task.Error, success: false);
+            task.Error = $"任務超過 {options.TaskTimeoutMin} 分鐘上限。";
+            context.AddStep("error", "任務逾時", task.Error, success: false);
             log.LogWarning("task {Id} timed out", task.Id);
         }
         catch (Exception ex)
         {
             task.State = TaskState.Failed;
             task.Error = ex.Message;
-            context.AddStep("error", "Task failed", ex.Message, success: false);
+            context.AddStep("error", "任務失敗", ex.Message, success: false);
             log.LogError(ex, "task {Id} failed", task.Id);
         }
         finally
@@ -126,16 +126,17 @@ public sealed class TaskService(
                 new System.Text.Json.Nodes.JsonObject { ["task_id"] = task.Id }, ct);
 
             var failed = result["status"]?.GetValue<string>() == "error";
-            context.AddStep("tool", "Writing result.xlsx",
+            context.AddStep("tool", "產生 result.xlsx",
                 detail: failed ? result["error"]?.GetValue<string>() : result["path"]?.GetValue<string>(),
                 toolName: "write_excel",
                 result: result.DeepClone(),
-                success: !failed);
+                success: !failed,
+                executedBy: "mcp");
         }
         catch (Exception ex)
         {
             log.LogError(ex, "excel export failed for {Id}", task.Id);
-            context.AddStep("error", "Could not write result.xlsx", ex.Message, success: false);
+            context.AddStep("error", "無法產生 result.xlsx", ex.Message, success: false);
         }
     }
 }

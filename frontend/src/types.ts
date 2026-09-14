@@ -14,6 +14,8 @@ export interface Step {
   at: string
   /** "model" when the agent chose this step, "script" when the fixed order did. */
   decidedBy: 'model' | 'script' | null
+  /** Which layer did the work: an MCP tool, or the model itself. */
+  executedBy: 'mcp' | 'model' | null
   /** Callout for the one or two steps that carry the argument. */
   note: string | null
   noteTone: 'win' | 'limit' | null

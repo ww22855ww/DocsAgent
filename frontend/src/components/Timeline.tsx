@@ -11,6 +11,18 @@ const DECIDER: Record<string, { label: string; title: string }> = {
   script: { label: '固定順序', title: '這一步是程式寫死的順序，模型沒有參與' },
 }
 
+/**
+ * Which layer carried the step out.
+ *
+ * Deliberately separate from who chose it. In agent mode every tool step is
+ * chosen by the model, but only classification is performed by it; without this
+ * badge classify_document looks like just another MCP tool.
+ */
+const EXECUTOR: Record<string, { label: string; title: string }> = {
+  mcp: { label: 'MCP 工具', title: '透過 MCP 呼叫 mcp-worker 上的工具，全部是寫死的程式' },
+  model: { label: '模型判斷', title: '不是 MCP 工具。這一步在 agent-api 內呼叫模型做判斷' },
+}
+
 function pretty(value: unknown): string {
   if (value === null || value === undefined) return ''
   return JSON.stringify(value, null, 2)
@@ -59,6 +71,7 @@ function StepRow({ step }: { step: Step }) {
   const hasPayload = step.arguments != null || step.result != null
   const mark = step.success ? ICON[step.kind] ?? '•' : '!'
   const decider = step.decidedBy ? DECIDER[step.decidedBy] : null
+  const executor = step.executedBy ? EXECUTOR[step.executedBy] : null
   const actions = browserActions(step.result)
 
   return (
@@ -74,13 +87,22 @@ function StepRow({ step }: { step: Step }) {
                 {decider.label}
               </span>
             )}
+            {executor && (
+              <span className={`executor ${step.executedBy}`} title={executor.title}>
+                {executor.label}
+              </span>
+            )}
             {step.durationMs > 0 && (
               <span className="step-time">{(step.durationMs / 1000).toFixed(1)}s</span>
             )}
           </span>
         </div>
 
-        {step.thought && <p className="thought">{step.thought}</p>}
+        {/* The model's own words, not UI copy. Labelled so an English line here
+            reads as the model thinking rather than a missed translation. */}
+        {step.thought && (
+          <p className="thought"><span className="thought-tag">模型的判斷理由</span>{step.thought}</p>
+        )}
         {step.detail && <p className="detail">{step.detail}</p>}
 
         {step.note && (
@@ -102,7 +124,7 @@ function StepRow({ step }: { step: Step }) {
         {!actions && hasPayload && (
           <>
             <button type="button" className="link" onClick={() => setOpen(!open)}>
-              {open ? 'Hide' : 'Show'} {step.toolName ?? 'details'}
+              {open ? '收起' : '查看'} {step.toolName ?? '明細'}
             </button>
             {open && (
               <div className="payload">
@@ -138,8 +160,8 @@ export default function Timeline({ steps, running, waitingLabel, mode }: Props) 
   if (steps.length === 0 && !running) {
     return (
       <section className="card">
-        <h2>Execution</h2>
-        <p className="empty">Run a task to see the agent's trace here.</p>
+        <h2>執行過程</h2>
+        <p className="empty">執行一個任務後，這裡會逐步顯示它做了什麼。</p>
       </section>
     )
   }
@@ -149,7 +171,7 @@ export default function Timeline({ steps, running, waitingLabel, mode }: Props) 
   return (
     <section className="card">
       <div className="card-head">
-        <h2>Execution</h2>
+        <h2>執行過程</h2>
         <span className={`run-mode ${mode}`}>
           {mode === 'llm'
             ? `Agent 模式 · ${decided} 步由模型決定`
@@ -162,7 +184,7 @@ export default function Timeline({ steps, running, waitingLabel, mode }: Props) 
           <li className="step pending">
             <span className="marker spinner" aria-hidden="true" />
             <div className="step-body">
-              <span className="step-title">{waitingLabel ?? 'Working…'}</span>
+              <span className="step-title">{waitingLabel ?? '處理中…'}</span>
             </div>
           </li>
         )}

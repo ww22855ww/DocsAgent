@@ -169,6 +169,25 @@ gateway in the path, so use the OpenAI `tools` array and
 prompt-based tool parsing. Tool selection runs 1 to 2 seconds; classification
 runs 3 to 7 seconds.
 
+**Always send `content` on an assistant message, even empty.** The OpenAI spec
+lets it be omitted when `tool_calls` is present and the gateway usually accepts
+that, but one instance behind it validates strictly and rejects the whole history
+with `messages.2.content Field required`. It is intermittent, so it passes for
+days and then fails mid-demo, and the cost is high: the request 400s, the
+fallback provider is tried, and the run stalls. Keep the fallback timeout short
+for the same reason; a five-minute hang is worse on stage than failing fast.
+
+**Steps carry both who chose them and who ran them.** `DecidedBy` is model or
+script, `ExecutedBy` is mcp or model. They are separate because in agent mode
+every tool step is chosen by the model while only `classify_document` is
+performed by it, and without the second badge that tool looks like just another
+MCP tool. The console shows both.
+
+**Trace copy is Traditional Chinese; technical terms are not translated.** Tool
+names, MCP, Playwright, Agent, file names and Excel stay as they are. The one
+English line that legitimately appears is the model's own reasoning, which is
+labelled 模型的判斷理由 so it does not read as a missed translation.
+
 **Self-reported confidence is not a signal.** gemma4 returns 1.0 on nearly every
 classification, including ones it gets wrong. Manual-review routing must be
 decided by rules (missing category, missing supplier, missing document number)
