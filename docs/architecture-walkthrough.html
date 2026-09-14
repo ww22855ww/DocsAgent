@@ -1007,7 +1007,7 @@ svg .node-box { transition: opacity .25s ease; }
     });
 
     out += '<line x1="450" y1="96" x2="450" y2="396" stroke="var(--line)" stroke-width="2"/>';
-    out += '<text x="450" y="442" text-anchor="middle" font-size="13" fill="var(--ink-2)">越過這條線的每一次嘗試，都在事後變成一個 bug</text>';
+    out += '<text x="450" y="442" text-anchor="middle" font-size="13" fill="var(--ink-2)">越線功能，可能累積技術債/降低流程易用性</text>';
     out += '</g>';
     return out;
   }
@@ -1118,8 +1118,7 @@ svg .node-box { transition: opacity .25s ease; }
       lede: "回到剛才那張圖的第 2 步。入口網站有兩個分頁，SCM 文件和 ESG 問卷，各自有不同的查詢條件和下載路徑，選錯就什麼都對不上。",
       points: [
         { h: "這一步就需要判斷", p: "模型讀完任務敘述，選擇 download_documents 而不是 download_esg_surveys，並填入今天的日期和部門。" },
-        { h: "接下來是純執行", p: "工具內部用 Playwright 登入、選單、填條件、查詢、逐份下載、搬進暫存區。模型看不到也管不著。" },
-        { h: "重複呼叫是安全的", p: "暫存區已有同名檔案就略過，不會重抓。" }
+        { h: "接下來是純執行", p: "工具內部用 Playwright 登入、選單、填條件、查詢、逐份下載、搬進暫存區。模型看不到也管不著。" }
       ],
       extra: '<div class="callout decide">把任務改寫成「整理各家廠商回覆的碳排與勞權自評表」，句子裡沒有 ESG 這個詞。' +
              '<b>關鍵字比對會抓錯分頁，模型讀得懂意思。</b></div>' +
@@ -1169,9 +1168,9 @@ svg .node-box { transition: opacity .25s ease; }
         { h: "這比上一頁更重要", p: "上一頁證明它會自己想辦法，這一頁證明它知道什麼時候不該自作主張。" },
         { h: "兩次的查詢都留在紀錄裡", p: "包含查不到和查到多筆的那幾次。這些才是「為什麼轉人工」的證據。" }
       ],
-      extra: '<div class="callout stop"><b>這個歧義是查出來的，不是設計出來的。</b>' +
-             '惠州和泰國兩家勝宏科技都在你們主檔裡，今年都有採購單。' +
-             '順帶一提，同一支查詢下「聯強國際」會命中六筆，其中還有 <code>.聯強國際</code> 和 <code>*聯強國際</code>。' +
+      extra: '<div class="callout stop"><b>這個歧義是查出來的。</b>' +
+             '惠州和泰國兩家勝宏科技都在主檔裡，今年都有採購單。' +
+             'ex: 同一支查詢下「聯強國際」會命中六筆，其中還有 <code>.聯強國際</code> 和 <code>*聯強國際</code>。' +
              '這種情況交給程式硬挑一筆易降低準確度。</div>'
     },
     {
@@ -1185,11 +1184,11 @@ svg .node-box { transition: opacity .25s ease; }
         { h: "案例二(文字幻覺)", p: "讓模型重打廠商名稱時，它把「勝宏科技」打成「涵孚科技」，查詢落空。後調整成讓它指定檔名，由程式帶入原值。" },
         { h: "同一個教訓", p: "模型很適合做判斷，不適合當資料的搬運工。凡是它已經看過的值，就不要再讓它複述一次(*建議另紀錄)。" }
       ],
-      extra: '<div class="callout"><b>「那工具不也要一個一個想清楚？」</b>' +
-             '要，但想的東西不一樣：工具是<b>能力</b>，分支是<b>情況</b>。' +
+      extra: '<div class="callout"><b>「那工具(Tools)不也要一個個寫清楚？」</b>' +
+             '要，但想的東西不一樣：Tools是<b>能力</b>，if-else是<b>情況</b>。' +
              '能力數得完，search_supplier 就 unique / ambiguous / not_found 三種；' +
-             '情況數不完，文件會長成什麼樣、任務會怎麼講，列不出來。' +
-             '「缺代碼就改用名稱查」這種原則 prompt 裡確實寫了，但那是一句話，不是一段程式，' +
+             '情況數不完，文件會長成什麼樣、任務會怎麼講，無法窮舉。' +
+             '「缺代碼就改用名稱查」這種原則 prompt 裡確實寫了，但那是一句話、一個規則，' +
              '而且哪一份文件屬於這個情況，仍然是模型自己認出來的。' +
              '路由最能說明這件事：prompt 沒有列任何說法，八種說法各測五次，模型 40 次全對。</div>' +
              '<table class="cmp"><thead><tr><th>情境</th><th>固定流程</th><th>Agent</th></tr></thead><tbody>' +
