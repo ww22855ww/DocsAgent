@@ -463,6 +463,13 @@ next: document text does reach the internal LLM during classification; portal,
 AD and database credentials stay in mcp-worker and never enter a model prompt.
 Do not soften that into "the data stays local", which is not true.
 
+**A step gets the architecture diagram only when topology is the point.** Four
+consecutive steps lighting up subsets of the same nine boxes showed where work
+happened but not what each step was about, and read as treading water before
+anything ran. Routing is a fork and the two model calls differ by what goes into
+them; neither reads off a map, so both have purpose-drawn figures. Three steps
+still use the architecture and none of them are adjacent.
+
 Two conventions hold it together. Colour encodes one idea everywhere: violet is
 a decision the model makes, teal is work deterministic code carries out, amber
 is a system we do not own. And architecture edges carry explicit waypoints

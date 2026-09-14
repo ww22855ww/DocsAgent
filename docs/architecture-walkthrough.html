@@ -736,6 +736,101 @@ svg .node-box { transition: opacity .25s ease; }
     return out;
   }
 
+  function routingFigure() {
+    var out = '<g>';
+    out += '<text x="450" y="40" text-anchor="middle" font-size="15" font-weight="700">同一句話，兩個可能的去處</text>';
+
+    out += '<rect x="270" y="62" width="360" height="44" rx="10" fill="var(--surface-sub)" stroke="var(--line)"/>';
+    out += '<text x="450" y="90" text-anchor="middle" font-size="13">使用者輸入：處理今天 SCM 文件</text>';
+
+    out += '<path d="M 450 106 L 450 140" stroke="currentColor" stroke-width="1.5" marker-end="url(#ar)"/>';
+
+    out += '<rect x="320" y="140" width="260" height="58" rx="10" fill="var(--decide-soft)" stroke="var(--decide)"/>';
+    out += '<text x="450" y="165" text-anchor="middle" font-size="13" font-weight="700" fill="var(--decide)">模型讀完這句話</text>';
+    out += '<text x="450" y="185" text-anchor="middle" font-size="11.5" fill="var(--ink-2)">決定該去哪一個分頁</text>';
+
+    // fork
+    out += '<path d="M 450 198 L 450 218 L 230 218 L 230 244" fill="none" stroke="var(--decide)" stroke-width="1.6" marker-end="url(#ar-decide)"/>';
+    out += '<path d="M 450 198 L 450 218 L 670 218 L 670 244" fill="none" stroke="currentColor" stroke-width="1.4" stroke-dasharray="5 4" marker-end="url(#ar)"/>';
+
+    function branch(x, tool, screen, files, chosen) {
+      var stroke = chosen ? "var(--decide)" : "var(--line)";
+      var g = '<rect x="' + (x - 140) + '" y="244" width="280" height="46" rx="9" fill="var(--do-soft)" stroke="var(--do)"/>';
+      g += '<text x="' + x + '" y="272" text-anchor="middle" font-size="12" class="mono" fill="var(--do)">' + tool + '</text>';
+      g += '<path d="M ' + x + ' 290 L ' + x + ' 316" stroke="currentColor" stroke-width="1.4" marker-end="url(#ar)"/>';
+      g += '<rect x="' + (x - 140) + '" y="316" width="280" height="132" rx="10" fill="var(--surface-sub)" stroke="' + stroke + '" stroke-width="' + (chosen ? 1.8 : 1) + '"/>';
+      g += '<text x="' + x + '" y="342" text-anchor="middle" font-size="12.5" font-weight="700">' + screen + '</text>';
+      files.forEach(function (f, i) {
+        g += '<text x="' + x + '" y="' + (366 + i * 20) + '" text-anchor="middle" font-size="11" class="mono" fill="var(--muted)">' + f + '</text>';
+      });
+      if (chosen) {
+        g += '<rect x="' + (x - 46) + '" y="222" width="92" height="20" rx="6" fill="var(--decide-soft)"/>';
+        g += '<text x="' + x + '" y="236" text-anchor="middle" font-size="11" font-weight="700" fill="var(--decide)">這次走這邊</text>';
+      }
+      return g;
+    }
+
+    out += branch(230, "download_documents", "SCM 文件查詢",
+      ["supplier_001.xlsx", "quality_002.xlsx", "debit_003.csv", "unknown_004.txt"], true);
+    out += branch(670, "download_esg_surveys", "ESG 問卷",
+      ["esg_3707.xlsx", "esg_9414.xlsx", "esg_draft_005.xlsx"], false);
+
+    out += '<text x="450" y="478" text-anchor="middle" font-size="12" fill="var(--muted)">兩個分頁的查詢條件、結果欄位、下載路徑都不一樣。選錯就什麼都對不上。</text>';
+    out += '</g>';
+    return out;
+  }
+
+  function classifyFigure() {
+    var out = '<g>';
+    out += '<text x="450" y="38" text-anchor="middle" font-size="15" font-weight="700">這裡有兩次模型呼叫，送進去的東西完全不同</text>';
+
+    // extraction feeds a cache that lives in agent-api
+    out += '<rect x="60" y="62" width="300" height="50" rx="9" fill="var(--do-soft)" stroke="var(--do)"/>';
+    out += '<text x="210" y="83" text-anchor="middle" font-size="12" class="mono" fill="var(--do)">extract_documents</text>';
+    out += '<text x="210" y="101" text-anchor="middle" font-size="11" fill="var(--ink-2)">把 xlsx / csv / txt 轉成文字</text>';
+
+    out += '<path d="M 362 87 L 436 87" stroke="currentColor" stroke-width="1.5" marker-end="url(#ar)"/>';
+
+    out += '<rect x="440" y="62" width="400" height="50" rx="9" fill="var(--surface-sub)" stroke="var(--line)"/>';
+    out += '<text x="640" y="83" text-anchor="middle" font-size="12.5" font-weight="700">全文暫存在 agent-api</text>';
+    out += '<text x="640" y="101" text-anchor="middle" font-size="11" fill="var(--muted)">沒有再回傳給任何人，只等著被分類讀走</text>';
+
+    function call(x, title, question, sends, gets, sendTone) {
+      var g = '<rect x="' + x + '" y="150" width="380" height="252" rx="12" fill="var(--decide-soft)" stroke="var(--decide)"/>';
+      g += '<text x="' + (x + 190) + '" y="178" text-anchor="middle" font-size="13" font-weight="700" fill="var(--decide)">' + title + '</text>';
+      g += '<text x="' + (x + 190) + '" y="199" text-anchor="middle" font-size="11.5" fill="var(--ink-2)">問模型：' + question + '</text>';
+
+      g += '<rect x="' + (x + 20) + '" y="214" width="340" height="106" rx="8" fill="var(--surface)" stroke="var(--line)"/>';
+      g += '<text x="' + (x + 34) + '" y="234" font-size="10.5" font-weight="700" fill="var(--muted)">送進去的是</text>';
+      sends.forEach(function (t, i) {
+        var tone = (t[0] === "!") ? "var(--stop)" : "var(--ink)";
+        var text = (t[0] === "!") ? t.slice(1) : t;
+        g += '<text x="' + (x + 34) + '" y="' + (256 + i * 20) + '" font-size="11.5" fill="' + tone + '">' + text + '</text>';
+      });
+
+      g += '<rect x="' + (x + 20) + '" y="330" width="340" height="54" rx="8" fill="var(--surface)" stroke="var(--line)"/>';
+      g += '<text x="' + (x + 34) + '" y="350" font-size="10.5" font-weight="700" fill="var(--muted)">收回來的是</text>';
+      g += '<text x="' + (x + 34) + '" y="371" font-size="11.5">' + gets + '</text>';
+      return g;
+    }
+
+    out += call(40, "① Agent 迴圈", "下一步做什麼？",
+      ["工具清單", "前面每一步的結果摘要", "檔名和字數", "!文件內容 ✗ 看不到"],
+      "要呼叫哪一個工具、參數填什麼");
+
+    out += call(480, "② 文件分類", "這是什麼文件？",
+      ["這一份文件的全文 ✓", "分類的規則說明", "要回傳的 JSON 格式"],
+      "類別、供應商、料號、單據號碼");
+
+    out += '<path d="M 640 112 L 640 132 L 670 132 L 670 150" fill="none" stroke="var(--decide)" stroke-width="1.5" marker-end="url(#ar-decide)"/>';
+
+    out += '<rect x="40" y="418" width="820" height="52" rx="10" fill="var(--do-soft)" stroke="var(--do)"/>';
+    out += '<text x="450" y="440" text-anchor="middle" font-size="12.5" font-weight="700" fill="var(--do)">mcp-worker 完全沒有呼叫模型的能力</text>';
+    out += '<text x="450" y="459" text-anchor="middle" font-size="11.5" fill="var(--ink-2)">它只會執行寫死的程式。上面兩次呼叫都發生在 agent-api。</text>';
+    out += '</g>';
+    return out;
+  }
+
   function contrastFigure() {
     var out = '<g>';
     out += '<text x="450" y="42" text-anchor="middle" font-size="15" font-weight="700">同一份文件，兩種做法</text>';
@@ -894,10 +989,7 @@ svg .node-box { transition: opacity .25s ease; }
     {
       act: "實際執行",
       fig: "取得文件",
-      arch: {
-        active: ["browser", "frontend", "agentapi", "llm", "worker", "portal"],
-        edges: ["browser>frontend", "frontend>agentapi", "agentapi>llm", "agentapi>worker", "worker>portal"]
-      },
+      concept: routingFigure,
       title: "第一步：先決定要去哪裡拿",
       lede: "使用者輸入「處理今天 SCM 文件」。入口網站有兩個分頁，SCM 文件和 ESG 問卷，各自有不同的查詢條件和下載路徑。",
       points: [
@@ -917,16 +1009,13 @@ svg .node-box { transition: opacity .25s ease; }
     {
       act: "實際執行",
       fig: "解析與分類",
-      arch: {
-        active: ["agentapi", "llm", "worker"],
-        edges: ["agentapi>worker", "agentapi>llm"]
-      },
+      concept: classifyFigure,
       title: "第二步：看懂每一份文件",
       lede: "先一次把所有文件解析成文字，再逐份分類，抽出供應商、料號、單據號碼。",
       points: [
-        { h: "這裡有兩次不同的模型呼叫，別混在一起", p: "一次是 agent 迴圈在問「下一步做什麼」，它從頭到尾看不到文件內容，只看到檔名和字數。另一次是分類，那一次會把整份文件的文字送給模型讀。" },
-        { h: "所以文件內容確實會送到模型", p: "送的是公司內部的 LLM 服務。不送的是 agent 迴圈那一路，因為它不需要，而且每一步都塞全文會把處理步數和 token 撐爆。" },
-        { h: "分類刻意放在 agent-api，不做成 MCP 工具", p: "mcp-worker 完全沒有呼叫模型的能力，它只會執行寫死的程式。分類放在 agent-api，JSON 格式、驗證、重試才都在程式控制下。" },
+        { h: "左邊那次看不到文件內容", p: "agent 迴圈只需要知道有哪些檔案、上一步結果如何，就能決定下一步。每一步都把全文塞進去，步數和 token 會直接爆掉。" },
+        { h: "右邊那次會把全文送出去", p: "送到公司內部的 LLM 服務。要判斷一份文件是什麼，沒有別的辦法。這也是整套流程裡唯一會把文件內容送出去的地方。" },
+        { h: "分類刻意不做成 MCP 工具", p: "放在 agent-api，JSON 格式、驗證、重試才都在程式控制下。模型只負責判斷類別，程式負責檢查答案能不能用。" },
         { h: "分類是用結構判斷，不是用主題", p: "一封談到來料異常的信件，主題像品檢報告，但它沒有欄位也沒有單號，所以歸為 Unknown。" }
       ],
       extra: '<div class="callout warn">實測發現：模型自己回報的信心值幾乎都是 1.0，<b>包括它答錯那次</b>。所以要不要轉人工是規則說了算，信心值只是最後一道參考。</div>'
