@@ -443,7 +443,7 @@ system sound shaky. Keep them for Q&A.
 
 ## Presentation aid
 
-`docs/architecture-walkthrough.html` is a twelve-step interactive walkthrough
+`docs/architecture-walkthrough.html` is a ten-step interactive walkthrough
 used to explain the demo at the department meeting, published as an Artifact at
 https://claude.ai/code/artifact/04668997-0199-4a6f-b8ac-d3c15a2c51d9
 
@@ -454,11 +454,13 @@ same file path from the one that published it.
 **Frame the architecture by deployment, not by Docker.** The audience does not
 use containers, so "Docker Host" reads to them as "something installs on my
 computer". The bands say 伺服器端 and 公司現有服務 instead, the browser node is
-labelled 使用者端·僅此一項, and step 7 exists to say outright that in production
-nothing runs on a user's machine but the browser. Keep that framing when editing:
-the Docker arrangement is a demo convenience, not the architecture.
+labelled 使用者端·僅此一項, and the architecture step says outright that in
+production nothing runs on a user's machine but the browser. Keep that framing
+when editing: the Docker arrangement is a demo convenience, not the architecture.
+That claim had a page of its own once; it is a point and a sentence, because a
+whole page on "it runs on a server" is a page spent on a non-answer.
 
-That step also carries the data boundary, which is the question the room asks
+The same step carries the data boundary, which is the question the room asks
 next: document text does reach the internal LLM during classification; portal,
 AD and database credentials stay in mcp-worker and never enter a model prompt.
 Do not soften that into "the data stays local", which is not true.
@@ -479,9 +481,16 @@ glyph is about the font size wide, a Latin one about half.
 **A step gets the architecture diagram only when topology is the point.** Four
 consecutive steps lighting up subsets of the same nine boxes showed where work
 happened but not what each step was about, and read as treading water before
-anything ran. Routing is a fork and the two model calls differ by what goes into
-them; neither reads off a map, so both have purpose-drawn figures. Three steps
-still use the architecture and none of them are adjacent.
+anything ran. Two steps still use it and they are not adjacent; everything else
+is purpose-drawn.
+
+**The execution act is three steps, not five.** 解析與分類 and 對應主檔 were
+separate pages narrating one straight line, and the lookup in particular is a
+single call with three possible answers — a shape, not a lecture. They are now
+one step behind `pipelineFigure`: 全文 → 分類 → 欄位 → 查主檔 → unique /
+ambiguous / not_found, model work in violet and everything else in teal. The
+two-model-call distinction that used to fill its own canvas survives as the
+caption, which is the right weight for it.
 
 Two conventions hold it together. Colour encodes one idea everywhere: violet is
 a decision the model makes, teal is work deterministic code carries out, amber
@@ -496,7 +505,10 @@ Two claims in it are easy to get wrong and both were wrong once:
   nobody wrote that rule. Someone did, as a sentence in `SystemPromptTemplate`.
   The honest argument is where the rule lives and what it costs to change, plus
   the routing result, where the prompt genuinely enumerates nothing and the model
-  still scored 40/40 across eight phrasings.
+  still scored 40/40 across eight phrasings. That concession is made once, in the
+  closing step's callout. It was in the 例外一 step too, which made two pages
+  answer the same objection and both sound defensive; say it where the
+  capability/situation argument already is.
 - **Document text does reach the model.** There are two separate model calls and
   the page must say which is which: the agent loop never sees document bodies,
   the classifier receives them in full. mcp-worker has no LLM access at all.
