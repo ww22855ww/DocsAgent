@@ -29,3 +29,6 @@ __pycache__/
 Thumbs.db
 .DS_Store
 .probe/
+
+# Local practice notes
+*.local.md

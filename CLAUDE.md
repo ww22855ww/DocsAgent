@@ -448,8 +448,17 @@ used to explain the demo at the department meeting, published as an Artifact at
 https://claude.ai/code/artifact/04668997-0199-4a6f-b8ac-d3c15a2c51d9
 
 It is self-contained and needs nothing running, so it still works if the stack
-does not. Republish by passing that URL as `url` from any conversation, or the
-same file path from the one that published it.
+does not. The file starts with `<meta charset="utf-8">` because without it a
+browser opening it directly decodes the page as Big5 and every Chinese string
+renders as mojibake; the Artifact wrapper supplies its own charset, so the
+published page never showed the problem. Republish by passing that URL as `url`
+from any conversation, or the same file path from the one that published it.
+
+**README's figures are exported from that walkthrough, not drawn twice.**
+`docs/media/architecture.svg`, `pipeline.svg` and `boundary.svg` are the step 6,
+8 and 11 figures serialised out of the live page with the CSS custom properties
+resolved to literal colours. Editing a figure means re-exporting the file, or
+README starts describing a diagram that no longer exists.
 
 **Frame the architecture by deployment, not by Docker.** The audience does not
 use containers, so "Docker Host" reads to them as "something installs on my
@@ -566,8 +575,9 @@ from it into `roadmap.md`, `README.md`, source files, prompts, or commit
 messages. Mail credentials are read only by `mcp-worker` and must never enter
 the agent-api LLM context.
 
-`MAIL_PASSWORD` is currently blank and `MAIL_ENABLED=false`; the user needs to
-supply the AD password before mail can be tested for real.
+`MAIL_PASSWORD` is set and `MAIL_ENABLED=true`, so `notify_manual_review` sends
+real mail to `MAIL_TO` on every run that routes a document to review. Turn it off
+before a rehearsal that does not need it, and restart both services.
 
 ## Importing other agent configs
 
