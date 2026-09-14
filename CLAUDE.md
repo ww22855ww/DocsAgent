@@ -463,6 +463,12 @@ next: document text does reach the internal LLM during classification; portal,
 AD and database credentials stay in mcp-worker and never enter a model prompt.
 Do not soften that into "the data stays local", which is not true.
 
+**mcp-worker still talks to postgres, for a different reason than it used to.**
+It writes `archives` and `manual_reviews` and reads them back for the workbook.
+It no longer reads master data from there unless the offline fallback is on, so
+the edge is labelled 歸檔與複核紀錄 and the mapping step does not draw it. A
+changed default leaves diagram labels describing the old behaviour; check them.
+
 **Derive figure geometry, do not eyeball it.** The loop figure placed four
 stages on a radius that closed the left and right boxes to within 100px, then
 centred a caption wider than that, so the text sat on the boxes. Positions now

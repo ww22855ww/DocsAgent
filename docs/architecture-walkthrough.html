@@ -574,7 +574,7 @@ svg .node-box { transition: opacity .25s ease; }
       pts: [[300, 200], [300, 222], [117, 222], [117, 244]], lp: [232, 222]
     },
     "worker>postgres": {
-      from: "worker", to: "postgres", label: "mock 主檔",
+      from: "worker", to: "postgres", label: "歸檔與複核紀錄",
       pts: [[530, 200], [530, 238], [156, 238], [156, 244]], lp: [412, 238]
     },
     "agentapi>llm": {
@@ -1039,8 +1039,8 @@ svg .node-box { transition: opacity .25s ease; }
       act: "實際執行",
       fig: "對應主檔",
       arch: {
-        active: ["agentapi", "worker", "postgres", "dbq"],
-        edges: ["agentapi>worker", "worker>postgres", "worker>dbq"]
+        active: ["agentapi", "worker", "dbq"],
+        edges: ["agentapi>worker", "worker>dbq"]
       },
       title: "第三步：把文件對到 ERP 主檔",
       lede: "文件上的供應商，要對應到 ERP 裡的正式代碼和名稱。這一步有兩個資料來源，可以現場切換。",
