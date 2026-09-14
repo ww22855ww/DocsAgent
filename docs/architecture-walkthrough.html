@@ -308,7 +308,7 @@ body {
 }
 .point p { margin: 0; color: var(--ink-2); font-size: .92rem; }
 
-.point code, .lede code, .callout code {
+.point code, .lede code, .callout code, table.cmp code {
   font-family: var(--mono);
   font-size: .84em;
   background: var(--surface-sub);
@@ -1013,6 +1013,66 @@ svg .node-box { transition: opacity .25s ease; }
     return out;
   }
 
+  /* Three ways to drive a screen, cheapest first. Geometry comes from named
+     constants rather than eyeballing: the rows share one lane, the gaps between
+     them are wide enough for an arrow plus its label, and the right-hand cost
+     column is anchored far enough from the left text that the longest label in
+     each still leaves a clear channel. */
+  function automationFigure() {
+    var LANE_X = 60, LANE_W = 780, ROW_H = 88, GAP = 16;
+    var ROW_Y = [122, 226, 330];
+    var TEXT_X = LANE_X + 58;          // clear of the rank badge
+    var COST_X = LANE_X + LANE_W - 24; // right-anchored cost column
+
+    var out = '<g>';
+    out += '<text x="450" y="34" text-anchor="middle" font-size="15" font-weight="700">操作網頁/視窗：由便宜到昂貴，壞掉才往下一層</text>';
+
+    // Layer zero: the cheapest fix is not to need any of the three.
+    out += '<rect x="' + LANE_X + '" y="56" width="' + LANE_W + '" height="50" rx="10" fill="var(--do-soft)" stroke="var(--do)" stroke-dasharray="5 4"/>';
+    out += '<text x="450" y="80" text-anchor="middle" font-size="13" font-weight="700" fill="var(--do)">第 0 層：先問有沒有 API，或能不能請對方在頁面加上 data-testid</text>';
+    out += '<text x="450" y="99" text-anchor="middle" font-size="11.5" fill="var(--ink-2)">內部系統通常兩者都做得到，做得到就不必走下面任何一層</text>';
+
+    var layers = [
+      { n: "1", tone: "var(--do)", soft: "var(--do-soft)",
+        t: "固定或語意 selector（現在的做法）",
+        d: '#btn-login，或 get_by_role("button", name="登入")',
+        who: "程式決定元素", cost: "每次 ~1 秒 · 0 token" },
+      { n: "2", tone: "var(--decide)", soft: "var(--decide-soft)",
+        t: "自我修復：模型讀 DOM 挑出新的 selector",
+        d: "純文字模型讀 accessibility tree，回傳 selector 寫回設定檔",
+        who: "模型決定，一次", cost: "只有壞掉時才付" },
+      { n: "3", tone: "var(--external)", soft: "var(--external-soft)",
+        t: "Computer Use：每一步看畫面再決定",
+        d: "沒有可用 DOM 語意時才需要：canvas、桌面程式、封閉 iframe",
+        who: "模型決定，每一步", cost: "每步一次多模態呼叫" }
+    ];
+
+    layers.forEach(function (L, i) {
+      var y = ROW_Y[i];
+      out += '<rect x="' + LANE_X + '" y="' + y + '" width="' + LANE_W + '" height="' + ROW_H + '" rx="10" fill="' + L.soft + '" stroke="' + L.tone + '"/>';
+      out += '<circle cx="' + (LANE_X + 32) + '" cy="' + (y + ROW_H / 2) + '" r="15" fill="var(--surface)" stroke="' + L.tone + '"/>';
+      out += '<text x="' + (LANE_X + 32) + '" y="' + (y + ROW_H / 2 + 5) + '" text-anchor="middle" font-size="13" font-weight="700" fill="' + L.tone + '">' + L.n + '</text>';
+      out += '<text x="' + TEXT_X + '" y="' + (y + 34) + '" font-size="13" font-weight="700" fill="' + L.tone + '">' + L.t + '</text>';
+      out += '<text x="' + TEXT_X + '" y="' + (y + 58) + '" font-size="11.5" fill="var(--ink-2)">' + L.d + '</text>';
+      out += '<text x="' + COST_X + '" y="' + (y + 34) + '" text-anchor="end" font-size="11.5" font-weight="700" fill="' + L.tone + '">' + L.who + '</text>';
+      out += '<text x="' + COST_X + '" y="' + (y + 56) + '" text-anchor="end" font-size="11.5" fill="var(--ink-2)">' + L.cost + '</text>';
+
+      if (i < layers.length - 1) {
+        var top = y + ROW_H;
+        out += '<path d="M 450 ' + top + ' L 450 ' + (top + GAP) + '" stroke="currentColor" stroke-width="1.5" marker-end="url(#ar)"/>';
+        out += '<text x="470" y="' + (top + GAP - 3) + '" font-size="11" fill="var(--muted)">' + (i ? "連 DOM 語意都沒有才往下" : "頁面改版、定位不到才往下") + '</text>';
+      }
+    });
+
+    // The line that matters more than the choice of layer.
+    var FY = ROW_Y[2] + ROW_H + 18;
+    out += '<rect x="' + LANE_X + '" y="' + FY + '" width="' + LANE_W + '" height="52" rx="10" fill="var(--warn-soft)" stroke="var(--warn)"/>';
+    out += '<text x="450" y="' + (FY + 22) + '" text-anchor="middle" font-size="12.5" font-weight="700" fill="var(--warn)">不論選哪一層，都要有每天一次的 smoke test</text>';
+    out += '<text x="450" y="' + (FY + 41) + '" text-anchor="middle" font-size="11.5" fill="var(--ink-2)">讓改版在正式跑批之前就被人發現，而不是在跑批當下才炸開</text>';
+    out += '</g>';
+    return out;
+  }
+
   // =========================================================================
   // Steps
   // =========================================================================
@@ -1196,6 +1256,28 @@ svg .node-box { transition: opacity .25s ease; }
              '<tr><td>SCM 文件（4 份）</td><td class="bad">2 歸檔 / 2 複核</td><td class="ok">3 歸檔 / 1 複核</td></tr>' +
              '<tr><td>同名廠商兩家</td><td class="bad">轉人工（因為缺代碼）</td><td class="ok">轉人工（因為無法判斷）</td></tr>' +
              '<tr><td>任務換句話說</td><td class="bad">抓錯分頁</td><td class="ok">抓對分頁</td></tr>' +
+             '</tbody></table>'
+    },
+    {
+      act: "補充",
+      fig: "操作網頁的選型",
+      concept: automationFigure,
+      title: "補充：要操作網頁或視窗時，怎麼選",
+      lede: "這個 demo 用 Playwright 直接對 DOM 操作，selector 寫死在工具裡。合理的下一個問題是：目標網站改版怎麼辦？這一頁是 Q&A 用的補充，不在主線流程裡。",
+      points: [
+        { h: "「DOM 走不通」和「寫死的 selector 走不通」是兩件事", p: "改版換掉 id、連顯示文字也改了，頁面上仍然有一棵完整的 accessibility tree，role、label、表單結構都還在。斷掉的是抄在程式裡的那個常數，不是定位這條路。" },
+        { h: "所以中間還有一層，不是只有二選一", p: "把 DOM 丟給純文字模型，讓它挑出新的 selector 寫回設定檔，之後所有執行又回到最快那條路。壞一次付一次，不是每次都付。Computer Use 是第三層，不是第二層。" },
+        { h: "內部/外部不是真正的分界", p: "真正的變數是改版頻率、失敗成本，以及最關鍵的『能不能改到目標頁面』。內部系統可以請對方加上 data-testid，一次談成、永遠不壞，比蓋一套自我修復划算得多。" },
+        { h: "外部網站有兩個非技術的風險", p: "頁面文字會進到模型的 context，等於多了一個 prompt injection 的入口；而帳號密碼目前只存在 mcp-worker，改成讓模型逐步操作之後這條界線會很難維持。" }
+      ],
+      extra: '<div class="callout decide"><b>核心概念：</b>永遠先問「這一步需要判斷嗎」。' +
+             '需要判斷的才往上疊模型，其餘的留在確定性程式裡——跟前一頁那條線是同一個原則，只是換到瀏覽器這一層。</div>' +
+             '<table class="cmp"><thead><tr><th>做法</th><th>適配場景</th><th>代價</th></tr></thead><tbody>' +
+             '<tr><td>系統 API / 檔案交換</td><td class="ok">對方有提供就一律優先</td><td>要申請、要對規格</td></tr>' +
+             '<tr><td>固定 selector</td><td>自家系統，或能要求對方加 <code>data-testid</code></td><td>頁面改版就壞</td></tr>' +
+             '<tr><td>語意 selector<br><code>get_by_role / get_by_label</code></td><td>內部系統、改版頻率低（本 demo 適用）</td><td>顯示文字改了才壞</td></tr>' +
+             '<tr><td>模型修 selector</td><td>改版頻繁、停掉的代價高</td><td class="bad">壞掉時一次模型呼叫，改完要人確認</td></tr>' +
+             '<tr><td>Computer Use</td><td>沒有 DOM 可用：canvas、桌面程式、遠端桌面</td><td class="bad">每步一次呼叫，最慢最貴，注入風險最高</td></tr>' +
              '</tbody></table>'
     }
   ];
