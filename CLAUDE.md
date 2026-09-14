@@ -447,6 +447,17 @@ rather than auto-routing, because auto-routing put labels on top of nodes and
 ran two edges down the same channel; the node columns are chosen so every edge
 has an empty channel to run down.
 
+Two claims in it are easy to get wrong and both were wrong once:
+
+- **The fall-back-to-name behaviour is in the prompt.** The page used to say
+  nobody wrote that rule. Someone did, as a sentence in `SystemPromptTemplate`.
+  The honest argument is where the rule lives and what it costs to change, plus
+  the routing result, where the prompt genuinely enumerates nothing and the model
+  still scored 40/40 across eight phrasings.
+- **Document text does reach the model.** There are two separate model calls and
+  the page must say which is which: the agent loop never sees document bodies,
+  the classifier receives them in full. mcp-worker has no LLM access at all.
+
 Keep its figures true to the code. The numbers it quotes (3 archived / 1 review
 in agent mode, 2 / 2 scripted), the vendor codes, and the transcription bug it
 cites are all real results from this repo.

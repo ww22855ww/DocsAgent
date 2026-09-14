@@ -707,7 +707,8 @@ svg .node-box { transition: opacity .25s ease; }
     out += '<text x="252" y="418" text-anchor="middle" font-size="11" class="mono" fill="var(--muted)">MCP 介面</text>';
 
     var tools = [
-      ["download_documents", "登入、查詢、下載、進暫存"],
+      ["download_documents", "SCM 文件分頁：登入、查詢、下載、進暫存"],
+      ["download_esg_surveys", "ESG 問卷分頁：同一套動作，不同畫面"],
       ["extract_documents", "xlsx / csv / txt 轉文字"],
       ["search_supplier", "固定 SQL 查主檔"],
       ["archive_record", "寫入資料庫並歸檔"],
@@ -847,6 +848,7 @@ svg .node-box { transition: opacity .25s ease; }
       points: [
         { h: "模型送出的是工具呼叫，不是程式碼", p: "它說「幫我用這個名稱查供應商」，而不是產生一段 SQL 或一個 CSS selector。" },
         { h: "工具刻意做得粗顆粒", p: "一個 download_documents 就包含登入、查詢、下載、搬進暫存四件事，模型不需要一步步驅動瀏覽器。" },
+        { h: "兩個分頁是兩個工具，不是一個參數", p: "SCM 文件和 ESG 問卷各有一支工具。模型的選擇是「挑哪一支」，不是「填什麼參數」，所以走錯畫面這件事在軌跡上一眼就看得到。" },
         { h: "這是安全邊界，不只是設計偏好", p: "查詢 API 會執行送進去的任何 SQL，所以 SQL 樣板寫死在工具裡，參數先過白名單。模型碰不到這一層。" }
       ],
       extra: '<div class="callout"><b>換個方式理解：</b>MCP 之於 agent，就像 API 文件之於工程師。你給的是能力清單和用法，不是資料庫密碼。</div>'
@@ -854,38 +856,21 @@ svg .node-box { transition: opacity .25s ease; }
 
     {
       act: "架構",
-      fig: "全服務架構",
-      arch: {
-        active: ["browser", "frontend", "agentapi", "worker", "postgres", "portal", "llm", "dbq", "mail"],
-        edges: []
-      },
-      title: "整套系統有九個角色",
-      lede: "上面五個是這次 demo 自己建的，跑在同一台機器的 Docker 裡。下面三個是公司既有的內部服務，我們只是呼叫它們。",
-      points: [
-        { h: "frontend", p: "React 主控台。瀏覽器看到的畫面，同時把 /api 反向代理到後端。" },
-        { h: "agent-api", p: ".NET。Agent 迴圈、呼叫 LLM、做文件分類、管理任務狀態。唯一同時牽涉決策與執行的服務。" },
-        { h: "mcp-worker", p: "Python。所有工具的實作：Playwright、檔案解析、主檔查詢、歸檔、寄信。" },
-        { h: "mock-portal", p: "模擬的企業入口網站，代表未來要接的真實系統。" },
-        { h: "postgres", p: "任務紀錄、執行軌跡、分類與對應歷程、歸檔結果。" }
-      ],
-      extra: '<div class="callout"><b>下方三個服務都是現成的。</b>LLM、SQL 查詢 API、Mail API 都已經在公司內部跑著，這個 demo 沒有新增任何基礎設施。</div>'
-    },
-    {
-      act: "架構",
-      fig: "調用關係",
+      fig: "全服務與調用關係",
       arch: {
         active: ["browser", "frontend", "agentapi", "worker", "postgres", "portal", "llm", "dbq", "mail"],
         edges: ["browser>frontend", "frontend>agentapi", "agentapi>llm", "agentapi>worker",
                 "agentapi>postgres", "worker>portal", "worker>postgres", "worker>dbq", "worker>mail"]
       },
-      title: "誰呼叫誰",
-      lede: "整張圖只有一個地方牽涉到模型：agent-api 往下連到 LLM。其餘每一條線都是確定性的程式呼叫。",
+      title: "九個角色，以及誰呼叫誰",
+      lede: "整張圖只有一條線牽涉到模型：agent-api 往下連到 LLM。其餘每一條都是確定性的程式呼叫。",
       points: [
-        { h: "瀏覽器只跟 frontend 說話", p: "它解析不到 Docker 內部的服務名稱，所以一律走相對路徑 /api，由 nginx 轉發。" },
-        { h: "agent-api 是 MCP 的用戶端", p: "它向 mcp-worker 要工具清單，再把清單交給模型選。worker 新增工具，這裡不用改。" },
-        { h: "只有 mcp-worker 碰得到外部系統", p: "Playwright 開瀏覽器、查 Oracle、寄信，全部在這一層。帳號密碼也只存在這個行程裡。" },
-        { h: "執行軌跡即時回傳畫面", p: "agent 每完成一步，就透過 SSE 推一筆到瀏覽器，所以畫面是跟著跑的，不是最後才一次顯示。" }
-      ]
+        { h: "agent-api 負責決策", p: ".NET。Agent 迴圈、呼叫模型、文件分類、任務狀態。它同時是 MCP 的用戶端：向 mcp-worker 要工具清單，再把清單交給模型選。" },
+        { h: "mcp-worker 負責執行", p: "Python，所有工具的實作。Playwright 開瀏覽器、查 Oracle、寄信全在這一層，帳號密碼也只存在這個行程裡。" },
+        { h: "mock-portal 是替身", p: "模擬的企業入口網站。接上正式系統之後換掉它，其餘不動。" },
+        { h: "執行軌跡即時回傳畫面", p: "每完成一步就推一筆到瀏覽器，所以畫面是跟著跑的，不是最後才一次顯示。" }
+      ],
+      extra: '<div class="callout"><b>下方三個服務都是現成的。</b>LLM、SQL 查詢 API、Mail API 都已經在公司內部跑著，這個 demo 沒有新增任何基礎設施。</div>'
     },
 
     {
@@ -937,10 +922,11 @@ svg .node-box { transition: opacity .25s ease; }
         edges: ["agentapi>worker", "agentapi>llm"]
       },
       title: "第二步：看懂每一份文件",
-      lede: "四份文件一次解析成文字，然後逐份分類，抽出供應商、料號、單據號碼。",
+      lede: "先一次把所有文件解析成文字，再逐份分類，抽出供應商、料號、單據號碼。",
       points: [
-        { h: "分類刻意放在 agent-api，不做成工具", p: "這樣 JSON 格式、驗證、重試都在程式控制下。模型只負責判斷類別，程式負責檢查答案能不能用。" },
-        { h: "文件內容不會回傳給模型", p: "全文快取在後端，agent 只看到檔名和字數。這讓整批文件的處理維持在十幾步，而不是被文字塞爆。" },
+        { h: "這裡有兩次不同的模型呼叫，別混在一起", p: "一次是 agent 迴圈在問「下一步做什麼」，它從頭到尾看不到文件內容，只看到檔名和字數。另一次是分類，那一次會把整份文件的文字送給模型讀。" },
+        { h: "所以文件內容確實會送到模型", p: "送的是公司內部的 LLM 服務。不送的是 agent 迴圈那一路，因為它不需要，而且每一步都塞全文會把處理步數和 token 撐爆。" },
+        { h: "分類刻意放在 agent-api，不做成 MCP 工具", p: "mcp-worker 完全沒有呼叫模型的能力，它只會執行寫死的程式。分類放在 agent-api，JSON 格式、驗證、重試才都在程式控制下。" },
         { h: "分類是用結構判斷，不是用主題", p: "一封談到來料異常的信件，主題像品檢報告，但它沒有欄位也沒有單號，所以歸為 Unknown。" }
       ],
       extra: '<div class="callout warn">實測發現：模型自己回報的信心值幾乎都是 1.0，<b>包括它答錯那次</b>。所以要不要轉人工是規則說了算，信心值只是最後一道參考。</div>'
@@ -955,7 +941,8 @@ svg .node-box { transition: opacity .25s ease; }
       title: "第三步：把文件對到 ERP 主檔",
       lede: "文件上的供應商，要對應到 ERP 裡的正式代碼和名稱。這一步有兩個資料來源，可以現場切換。",
       points: [
-        { h: "mock 與 real 回答一致", p: "mock 主檔用的是真實的 EBS 供應商，所以切換模式是在證明介面可用，而不是換一套劇本。" },
+        { h: "兩個來源都是真資料，差別在查哪一份", p: "「本機副本」查的是預先抓下來的 EBS 供應商，「直連 ERP」當場打查詢 API。兩邊回答一致，所以現場切換是在證明介面可用，不是換一套劇本。" },
+        { h: "展示預設用本機副本，是為了可重現", p: "同一句話每次都要得到同樣結果。而且「兩家同名廠商」那個情境需要能開關其中一家，那只有本機副本做得到。" },
         { h: "模型永遠不產生 SQL", p: "SQL 樣板寫死，參數先檢查有沒有引號、分號、註解符號。查詢 API 會執行任何送進去的 SQL，所以這道關卡是承重的。" },
         { h: "查詢結果會標明是否唯一", p: "回傳 unique、ambiguous 或 not_found。只有 unique 算對應成功，這讓後面的判斷有明確依據。" }
       ]
@@ -971,7 +958,9 @@ svg .node-box { transition: opacity .25s ease; }
         { h: "唯一命中就繼續", p: "查到 40891 勝宏科技（惠州），對應成立，文件歸檔。這一份原本會變成人工工作。" },
         { h: "歸檔存的是主檔的正式名稱", p: "不是文件上印的簡稱。所以後續報表對得起來。" }
       ],
-      extra: '<div class="callout decide">這就是 agent 的價值：<b>沒有人事先寫過「缺代碼就改用名稱查」這條規則</b>，它是從工具清單和結果自己推出來的。</div>'
+      extra: '<div class="callout decide"><b>先講清楚，免得被抓：</b>「缺代碼就用名稱查」這件事，' +
+             'prompt 裡有寫成一句話。差別不在有沒有寫，而在寫在哪裡、改起來要多久：' +
+             '固定流程要動程式、測試、上版；這裡是一句話。而且 agent 要自己判斷這一份文件是不是那個情況。</div>'
     },
     {
       act: "實際執行",
@@ -1000,8 +989,13 @@ svg .node-box { transition: opacity .25s ease; }
         { h: "實際踩過的例子二", p: "讓模型重打廠商名稱時，它把「勝宏科技」打成「涵孚科技」，查詢落空。改成讓它指定檔名，由程式帶入原值。" },
         { h: "同一個教訓", p: "模型很適合做判斷，不適合當資料的搬運工。凡是它已經看過的值，就不要再讓它複述一次。" }
       ],
-      extra: '<table class="cmp"><thead><tr><th>情境</th><th>固定流程</th><th>Agent</th></tr></thead><tbody>' +
-             '<tr><td>SCM 文件（四份）</td><td class="bad">2 歸檔 / 2 複核</td><td class="ok">3 歸檔 / 1 複核</td></tr>' +
+      extra: '<div class="callout"><b>會被問的問題：「工具不也要一個一個想清楚嗎？」</b>' +
+             '對，要。但要想的東西不一樣：工具是<b>能力</b>，分支是<b>情況</b>。' +
+             '能力數得完，情況數不完。search_supplier 只有 unique / ambiguous / not_found 三種結果，' +
+             '這三種我想得完；但「文件會長成什麼樣、任務會怎麼講」想不完。' +
+             '路由那一關最能說明：prompt 沒有列任何說法，八種說法各測五次，模型 40 次全對。</div>' +
+             '<table class="cmp"><thead><tr><th>情境</th><th>固定流程</th><th>Agent</th></tr></thead><tbody>' +
+             '<tr><td>SCM 文件（4 份）</td><td class="bad">2 歸檔 / 2 複核</td><td class="ok">3 歸檔 / 1 複核</td></tr>' +
              '<tr><td>同名廠商兩家</td><td class="bad">轉人工（因為缺代碼）</td><td class="ok">轉人工（因為無法判斷）</td></tr>' +
              '<tr><td>任務換句話說</td><td class="bad">抓錯分頁</td><td class="ok">抓對分頁</td></tr>' +
              '</tbody></table>'
