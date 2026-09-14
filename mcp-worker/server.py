@@ -42,11 +42,24 @@ mcp.settings.streamable_http_path = "/mcp"
 
 
 async def _run(fn, *args, **kwargs):
-    """Run a blocking tool off the event loop, turning ToolError into a clean result."""
+    """Run a blocking tool off the event loop, returning every failure as data.
+
+    ToolError is input the agent can correct by calling again. Anything else is
+    a bug or an environment failure, and it has to come back as a result too,
+    because an exception that escapes here is not reported as a failure further
+    up: FastMCP turns it into an isError payload whose text is not JSON,
+    McpToolClient cannot parse that so it hands the runners `{"text": ...}`, and
+    both runners decide success by reading `status`. A missing status reads as
+    success, so a step that never ran would be drawn green and the task would
+    carry on. Returning the error keeps it on the path ToolError already proved.
+    """
     try:
         return await anyio.to_thread.run_sync(lambda: fn(*args, **kwargs))
     except ToolError as exc:
         return {"status": "error", "error": str(exc)}
+    except Exception as exc:  # noqa: BLE001 - surfaced to the agent as data
+        log.exception("tool %s failed", getattr(fn, "__name__", fn))
+        return {"status": "error", "error": f"{type(exc).__name__}: {exc}"}
 
 
 # ---------------------------------------------------------------------------

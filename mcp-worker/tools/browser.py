@@ -22,6 +22,15 @@ NAV_TIMEOUT_MS = 20_000
 DOWNLOAD_TIMEOUT_MS = 30_000
 
 
+class PortalShapeError(RuntimeError):
+    """The page loaded, but it is not the page this tool was written against.
+
+    Separate from a timeout because the two need different responses: a timeout
+    is usually the portal being slow or down, this one means the markup changed
+    (or something is standing in front of it) and the selectors need revisiting.
+    """
+
+
 def _video_options() -> dict:
     """Record the session when PORTAL_VIDEO_DIR is set, otherwise record nothing.
 
@@ -146,7 +155,21 @@ def _read_results(page, j: Journal, summary_selector: str, row_selector: str) ->
     That is the whole trick: the page was built to be addressed.
     """
     page.wait_for_selector(summary_selector, timeout=NAV_TIMEOUT_MS)
-    count = int(page.get_attribute(summary_selector, "data-count") or "0")
+
+    # "No documents today" and "this is not the page we think it is" must not
+    # produce the same answer. A missing data-count used to fall back to zero,
+    # which returns an empty list, which reports a successful run that found
+    # nothing - the hardest kind of failure to notice, because nothing is red.
+    raw = page.get_attribute(summary_selector, "data-count")
+    if raw is None:
+        raise PortalShapeError(
+            f"{summary_selector} 存在但沒有 data-count 屬性，這個頁面不是本工具認得的結果頁。")
+    try:
+        count = int(raw)
+    except ValueError:
+        raise PortalShapeError(
+            f"{summary_selector} 的 data-count 不是數字：{raw!r}") from None
+
     j.add("讀取屬性", summary_selector + "[data-count]",
           "結果區塊自己標示了筆數，直接讀這個屬性，不用去數畫面上的列",
           found=f"{count} 筆")
@@ -156,9 +179,14 @@ def _read_results(page, j: Journal, summary_selector: str, row_selector: str) ->
 
     rows = page.query_selector_all(row_selector)
     files = [el.get_attribute("data-file") for el in rows]
+    named = [f for f in files if f]
+    if not named:
+        raise PortalShapeError(
+            f"結果頁說有 {count} 筆，但 {row_selector} 一列也沒有帶 data-file 屬性。")
+
     j.add("讀取屬性", row_selector + "[data-file]",
           "每一列都帶著自己的檔名屬性，逐列讀出來",
-          found="、".join(f for f in files if f))
+          found="、".join(named))
     return files
 
 
@@ -197,6 +225,7 @@ def _fetch(label: str, search, query: dict) -> dict:
                                     slow_mo=_slow_mo_ms())
         j.add("啟動瀏覽器", "chromium (headless)",
               "在容器內開一個沒有畫面的瀏覽器")
+        ctx = None
         try:
             ctx = browser.new_context(accept_downloads=True, **_video_options())
             page = ctx.new_page()
@@ -226,12 +255,42 @@ def _fetch(label: str, search, query: dict) -> dict:
                     "staged_path": staged,
                 })
 
-            j.add("\u95dc\u9589\u700f\u89bd\u5668", "chromium",
-                  f"\u5171\u53d6\u5f97 {len(files_meta)} \u4efd\u6a94\u6848\uff0c\u642c\u5165\u66ab\u5b58\u5340")
-            ctx.close()
-        except PWTimeout as exc:
-            raise RuntimeError(f"Portal automation timed out: {exc}") from exc
+            j.add("關閉瀏覽器", "chromium",
+                  f"共取得 {len(files_meta)} 份檔案，搬入暫存區")
+        except Exception as exc:  # noqa: BLE001 - returned to the agent as data
+            # Return rather than raise. Raising loses the journal, which is
+            # exactly the thing worth having when the portal is the suspect:
+            # it is the record of which URL was opened and which selector was
+            # being waited on. The journal only ever reached the trace on the
+            # success path, so a failure said "timed out" and nothing else.
+            if isinstance(exc, PortalShapeError):
+                message = f"Portal page shape changed: {exc}"
+            elif isinstance(exc, PWTimeout):
+                message = f"Portal automation timed out: {exc}"
+            else:
+                message = f"{type(exc).__name__}: {exc}"
+
+            log.warning("%s failed: %s", label, message)
+            j.add("中止", "chromium", message)
+
+            return {
+                "status": "error",
+                "error": message,
+                "source": label,
+                "query": query,
+                # Whatever reached staging before the failure. Deliberately not
+                # called "files": ToolRegistry.RememberDownloads keys on that
+                # name, and a half-finished batch must not enter the pipeline
+                # as though the step had succeeded.
+                "staged_before_failure": [m["filename"] for m in files_meta],
+                "staging_dir": config.STAGING_DIR,
+                "browser_steps": j.entries,
+            }
         finally:
+            # Close the context before the browser, or a recording started by
+            # PORTAL_VIDEO_DIR is never flushed to disk.
+            if ctx is not None:
+                ctx.close()
             browser.close()
 
     return {

@@ -276,6 +276,45 @@ that has not met it. `ForModel` drops that journal, since the model cannot act o
 it and it costs a few hundred tokens a step. Both slim document bodies. Using one
 method for both is what silently removed the journal from the UI the first time.
 
+**A tool reports failure by returning it, never by raising.** `server._run` turns
+both `ToolError` and every other exception into `{"status": "error", ...}`, and
+`browser._fetch` returns that shape itself so it can attach `browser_steps`. This
+is load-bearing rather than tidy. An exception that escapes a tool becomes an MCP
+`isError` payload whose text is not JSON; `McpToolClient` cannot parse it and
+hands the runners `{"text": ...}`; both runners decide success by reading
+`status`, and a missing `status` reads as success. A Playwright failure was
+therefore drawn green and the task carried on to report that today had no
+documents. Keep new tools on the `_run` path, and keep the browser tool
+returning rather than raising, or that failure mode comes back.
+
+**Argument validation still bypasses that.** FastMCP checks the schema before the
+tool body runs, so a type mismatch never reaches `_run` and does escape as
+`isError` with non-JSON text. The gap is narrow — the model would have to send a
+number where the schema says string — and closing it means having
+`McpToolClient.CallAsync` consult `result.IsError` before it tries to parse.
+Noted rather than fixed.
+
+**The browser journal survives a failure, and that is the point of it.** The
+journal used to be built into the success return only, so the run that most
+needed it — which URL did it open, which selector was it waiting on — was the one
+that reported `timed out` and nothing else. `_fetch` now returns it on the error
+path too, with the failure itself as the last entry. Nothing in agent-api or the
+frontend needed changing for this: `ForTrace` does not inspect status and
+`Timeline.tsx` renders the journal on failed steps as readily as successful ones.
+
+**Partial downloads are reported under their own key.** The error return uses
+`staged_before_failure`, not `files`, because `ToolRegistry.RememberDownloads`
+keys on `files` and would feed a half-finished batch into the pipeline as though
+the step had succeeded.
+
+**"No documents today" and "this is not our page" must not look alike.**
+`_read_results` used to fall back to zero when `data-count` was missing, which
+returns an empty list, which reports a successful run that found nothing — the
+hardest kind of failure to spot, because nothing is red. A missing or
+non-numeric `data-count`, and a positive count whose rows carry no `data-file`,
+now raise `PortalShapeError`. A genuine `data-count="0"` is still a legitimate
+empty result.
+
 **Steps carry who decided them.** `TaskStep.DecidedBy` is `model` or `script`, and
 the console badges every step with it. `Note` marks the one or two steps the
 comparison turns on: the agent recovering from a missing code, and the fixed flow
