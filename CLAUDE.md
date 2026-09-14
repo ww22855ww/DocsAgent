@@ -484,19 +484,39 @@ happened but not what each step was about, and read as treading water before
 anything ran. Two steps still use it and they are not adjacent; everything else
 is purpose-drawn.
 
-**The execution act opens on the whole task, then zooms in.** Explaining the
-loop and then showing two individual decisions left the orchestration invisible:
-nobody could see what one sentence actually produced. `orchestrationFigure` is a
-measured run pulled from `task_steps` — 17 steps, 57 seconds, one row per
-document — and the rows are deliberately ragged, because differing lengths are
-the evidence that nothing wrote the sequence down. Re-measure it if the flow
-changes; a made-up trace on that page would be the easiest thing in the deck to
-disprove, since the console shows the real one minutes later.
+**The whole run comes right after the loop, before the close-ups.** The acts
+run 概念 (3) → 全貌 (1) → 架構 (2) → 細看 (4) → 收斂 (1). That order exists
+because the loop was explained abstractly on page 3 and only became concrete on
+page 6, with the tool layer and the service map in between; the measured run now
+sits at page 4 as the same idea in real numbers, and it raises the question
+("where do search_supplier and archive_record come from?") that the MCP page
+answers. The four 細看 steps are close-ups of that one run and say so, keyed to
+its step numbers — fetching is step 2 there, which is why they are no longer
+titled 第一步 / 第二步.
+
+`orchestrationFigure` is a measured run pulled from `task_steps` — 17 steps, 57
+seconds, one row per document — and the rows are deliberately ragged, because
+differing lengths are the evidence that nothing wrote the sequence down.
+Re-measure it if the flow changes; a made-up trace there would be the easiest
+thing in the deck to disprove, since the console shows the real one minutes
+later.
 
 Colour on that figure means *who did the work*, not who chose it: in agent mode
 the model chose every step, and only classification is performed by it. The
 legend and the caption have to say both, or the figure contradicts the trace the
 audience is about to watch.
+
+**That page must not say nobody wrote the sequence.** `SystemPromptTemplate`
+sketches a normal run in five lines — fetch, extract, classify each, resolve or
+review, archive — and a presenter who claims otherwise loses the room the moment
+someone reads the prompt. What nobody wrote is the count, the order, and which
+document needed which lookup. The page also has to answer "how does it know
+there are four documents", because that is the first question anyone asks: the
+download and extract results list the four filenames (names and character counts
+only), that list stays in the message history, and the model picks the next
+unprocessed one each turn. This is the third time an overclaim about the prompt
+has had to be walked back. Check any new one against the prompt before writing
+it.
 
 **The two middle execution steps are one, not two.** 解析與分類 and 對應主檔 were
 separate pages narrating one straight line, and the lookup in particular is a
