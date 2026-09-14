@@ -250,6 +250,19 @@ fills those arguments from AgentContext for both runners, so what gets written i
 decided by code. Apply the same rule to any new tool: the agent chooses when to
 call it, never what gets recorded.
 
+**The trace and the model get different shapes of a tool result.**
+`AgentContext.ForTrace` keeps the browser journal, because showing which selector
+Playwright addressed is what answers "how does it read the page" for an audience
+that has not met it. `ForModel` drops that journal, since the model cannot act on
+it and it costs a few hundred tokens a step. Both slim document bodies. Using one
+method for both is what silently removed the journal from the UI the first time.
+
+**Steps carry who decided them.** `TaskStep.DecidedBy` is `model` or `script`, and
+the console badges every step with it. `Note` marks the one or two steps the
+comparison turns on: the agent recovering from a missing code, and the fixed flow
+running out of options on the same document. Keep notes rare; they stop working
+when everything is highlighted.
+
 **Document text never goes back to the model.** extract_documents returns every
 document body; AgentContext caches it and returns only filenames and sizes to the
 agent. classify_document takes a filename and reads the text from that cache.
@@ -289,6 +302,15 @@ and declines when it does not, and the prompt forbids picking a row out of an
 ambiguous result. In `DBQUERY_MODE=real` the name is always ambiguous, because
 both companies really exist. Reset to `unique` after demonstrating the ambiguous
 case.
+
+**The model cannot reproduce Traditional Chinese proper nouns, anywhere.**
+Asked to write the closing summary it turned 華碩電腦股份有限公司 into
+鈺玮电讯股份有限公司 and 聯強國際 into 鼎瑞国际 — clean UTF-8, wrong characters.
+The prompt therefore tells it to use file names and counts only, and
+`LlmAgentRunner.Vet` discards any summary containing a company-name marker in
+favour of a generated one. Wrong vendor names in front of a procurement audience
+discredit everything else on the screen. Do not add a feature that has the model
+restate a name.
 
 **Never make the model retype an identifier it has already seen.** Asked to
 repeat a Chinese vendor name into a tool argument, gemma4 turned 勝宏科技 into

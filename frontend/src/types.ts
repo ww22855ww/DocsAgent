@@ -12,6 +12,19 @@ export interface Step {
   success: boolean
   durationMs: number
   at: string
+  /** "model" when the agent chose this step, "script" when the fixed order did. */
+  decidedBy: 'model' | 'script' | null
+  /** Callout for the one or two steps that carry the argument. */
+  note: string | null
+  noteTone: 'win' | 'limit' | null
+}
+
+/** One Playwright action, recorded so the trace can show how the page was driven. */
+export interface BrowserAction {
+  action: string
+  target: string
+  detail: string
+  found: string | null
 }
 
 export interface DocumentOutcome {

@@ -35,10 +35,16 @@ public sealed class AgentContext(AgentTask task, Action<TaskStep>? onStep = null
         JsonNode? arguments = null,
         JsonNode? result = null,
         bool success = true,
-        int durationMs = 0)
+        int durationMs = 0,
+        string? decidedBy = null,
+        string? note = null,
+        string? noteTone = null)
     {
         var step = new TaskStep
         {
+            DecidedBy = decidedBy,
+            Note = note,
+            NoteTone = noteTone,
             Index = task.Steps.Count + 1,
             Kind = kind,
             Title = title,
@@ -168,13 +174,43 @@ public sealed class AgentContext(AgentTask task, Action<TaskStep>? onStep = null
            s.Contains(value, StringComparison.OrdinalIgnoreCase);
 
     /// <summary>
-    /// Shrink a tool result before it goes back to the model.
+    /// The shape the trace keeps.
     ///
-    /// extract_documents returns every document body. Feeding that back would
-    /// spend thousands of tokens on text the model does not need to see, since
-    /// classify_document reads it from the cache instead.
+    /// Document bodies are dropped because they are megabytes of text that the
+    /// results table already summarises, but the browser journal is kept: it is
+    /// the whole point of the download step for an audience that has not met
+    /// Playwright.
     /// </summary>
-    public JsonNode Summarise(string toolName, JsonNode result)
+    public JsonNode ForTrace(string toolName, JsonNode result) => SlimDocuments(toolName, result);
+
+    /// <summary>
+    /// The shape the model sees.
+    ///
+    /// Everything the trace drops, plus the browser journal, which would spend a
+    /// few hundred tokens a step describing clicks the model cannot act on.
+    /// </summary>
+    public JsonNode ForModel(string toolName, JsonNode result)
+    {
+        var trimmed = SlimDocuments(toolName, result);
+
+        if (trimmed is JsonObject obj && obj.ContainsKey("browser_steps"))
+        {
+            var copy = obj.DeepClone().AsObject();
+            copy.Remove("browser_steps");
+            return copy;
+        }
+
+        return trimmed;
+    }
+
+    /// <summary>
+    /// Replace every document body with its length.
+    ///
+    /// extract_documents returns the full text of every file. classify_document
+    /// reads that text from this context instead, so nothing downstream needs
+    /// the bodies carried around.
+    /// </summary>
+    private static JsonNode SlimDocuments(string toolName, JsonNode result)
     {
         if (toolName != "extract_documents" || result["documents"] is not JsonArray docs)
             return result;

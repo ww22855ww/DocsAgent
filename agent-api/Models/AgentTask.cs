@@ -31,6 +31,23 @@ public sealed class TaskStep
     public bool Success { get; init; } = true;
     public int DurationMs { get; init; }
     public DateTimeOffset At { get; init; } = DateTimeOffset.UtcNow;
+
+    /// <summary>
+    /// Who chose to take this step: "model" when the agent picked the tool,
+    /// "script" when the fixed sequence did. The UI badges this, which is how
+    /// the audience sees the two modes differ without being told.
+    /// </summary>
+    public string? DecidedBy { get; init; }
+
+    /// <summary>
+    /// A short label for a step that carries the argument, e.g. the moment the
+    /// agent recovers from a missing code or the moment the fixed flow runs out
+    /// of options. Rendered as a callout, so use it sparingly.
+    /// </summary>
+    public string? Note { get; init; }
+
+    /// <summary>Whether Note marks a good outcome or a limitation.</summary>
+    public string? NoteTone { get; init; }
 }
 
 /// <summary>What happened to one document as it moved through the pipeline.</summary>

@@ -25,6 +25,9 @@ public sealed class ScriptedAgentRunner(
 {
     public string Mode => "scripted";
 
+    /// <summary>Note to attach to the next step, set just before the call it belongs to.</summary>
+    private string? _pendingNote;
+
     public async Task RunAsync(AgentContext context, CancellationToken ct)
     {
         var task = context.Task;
@@ -147,6 +150,9 @@ public sealed class ScriptedAgentRunner(
         }
         else
         {
+            // The gap the agent closes. Labelled here so the two traces can be
+            // read side by side and the difference is visible, not explained.
+            _pendingNote = "文件上沒有供應商代碼。固定流程沒有第二條路可走，只能轉人工";
             await SendToManualReviewAsync(context, filename,
                 "no supplier code on the document", ct);
             return;
@@ -216,9 +222,14 @@ public sealed class ScriptedAgentRunner(
                 title: intent,
                 toolName: toolName,
                 arguments: args.DeepClone(),
-                result: context.Summarise(toolName, result).DeepClone(),
+                result: context.ForTrace(toolName, result).DeepClone(),
                 success: !failed,
-                durationMs: (int)sw.ElapsedMilliseconds);
+                durationMs: (int)sw.ElapsedMilliseconds,
+                decidedBy: "script",
+                note: _pendingNote,
+                noteTone: _pendingNote is null ? null : "limit");
+
+            _pendingNote = null;
 
             if (failed)
                 throw new InvalidOperationException($"{toolName} failed: {result["error"]?.GetValue<string>()}");

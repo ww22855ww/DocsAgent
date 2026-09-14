@@ -102,6 +102,7 @@ export default function App() {
         steps={steps}
         running={running}
         waitingLabel={state ? WAITING_LABEL[state] ?? null : null}
+        mode={mode}
       />
 
       {final && <ResultPanel final={final} />}

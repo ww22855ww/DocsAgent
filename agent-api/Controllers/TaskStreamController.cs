@@ -120,6 +120,9 @@ public sealed class TaskStreamController(TaskService tasks, ILogger<TaskStreamCo
         s.Success,
         s.DurationMs,
         s.At,
+        s.DecidedBy,
+        s.Note,
+        s.NoteTone,
     };
 
     private static object Final(AgentTask task) => new

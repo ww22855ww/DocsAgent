@@ -81,6 +81,12 @@ public sealed class LlmAgentRunner(
         - Do not repeat a tool call that already succeeded.
         - When every document is resolved, stop calling tools and reply with a
           short plain-text summary of what you did.
+
+        Writing that summary:
+        - Refer to documents by file name, and give counts.
+        - Do NOT write out supplier names, supplier codes or part numbers. They
+          are already displayed beside your summary, and copying them back is
+          how they get corrupted.
         """;
 
     public async Task RunAsync(AgentContext context, CancellationToken ct)
@@ -204,7 +210,10 @@ public sealed class LlmAgentRunner(
 
         TrackOutcome(context, name, args, result, ok);
 
-        var forModel = context.Summarise(name, result);
+        var forModel = context.ForModel(name, result);
+        var forTrace = context.ForTrace(name, result);
+
+        var (note, tone) = Annotate(context, name, args, result, ok);
 
         context.AddStep(
             kind: name == ToolRegistry.ClassifyTool ? "classify" : "tool",
@@ -212,11 +221,47 @@ public sealed class LlmAgentRunner(
             thought: thought,
             toolName: name,
             arguments: args.DeepClone(),
-            result: forModel.DeepClone(),
+            result: forTrace.DeepClone(),
             success: ok,
-            durationMs: (int)sw.ElapsedMilliseconds);
+            durationMs: (int)sw.ElapsedMilliseconds,
+            decidedBy: "model",
+            note: note,
+            noteTone: tone);
 
         return (forModel, ok);
+    }
+
+    /// <summary>
+    /// Label the two steps the demo turns on.
+    ///
+    /// Only the moments that carry the argument get a note: the agent finding a
+    /// second route when the code is missing, and the agent refusing to pick one
+    /// of several candidates. Everything else stays unlabelled so these stand out.
+    /// </summary>
+    private static (string? Note, string? Tone) Annotate(
+        AgentContext context, string name, JsonObject args, JsonNode result, bool ok)
+    {
+        if (!ok) return (null, null);
+
+        if (name == "search_supplier")
+        {
+            var file = args["filename"]?.GetValue<string>();
+            var searchedByName = args["supplier_name"] is not null
+                || (file is not null && context.Outcome(file).SupplierCode is null);
+
+            var match = result["match"]?.GetValue<string>();
+
+            if (searchedByName && match == "unique")
+                return ("文件上沒有供應商代碼，agent 自己改用廠商名稱查詢，並且查到唯一一筆", "win");
+
+            if (match == "ambiguous")
+            {
+                var n = result["count"]?.GetValue<int>() ?? 0;
+                return ($"查到 {n} 家同名廠商，agent 沒有從中挑一個，改送人工複核", "win");
+            }
+        }
+
+        return (null, null);
     }
 
     /// <summary>Keep the per-document outcome in step with what the agent just did.</summary>
@@ -255,9 +300,8 @@ public sealed class LlmAgentRunner(
                 $"Agent stopped with {unresolved} document(s) neither archived nor sent to manual review.");
         }
 
-        task.Summary = string.IsNullOrWhiteSpace(closing)
-            ? $"Processed {docs.Count} document(s). {archived} archived, {review} sent to manual review."
-            : closing!.Trim();
+        task.Summary = Vet(context, closing)
+            ?? $"處理 {docs.Count} 份文件：{archived} 份歸檔，{review} 份送人工複核。";
 
         task.State = review > 0 ? TaskState.ManualReview : TaskState.Completed;
         context.AddStep("summary", "Task complete", task.Summary);
@@ -272,6 +316,30 @@ public sealed class LlmAgentRunner(
     /// falls back to what that document actually carries. Otherwise the trace
     /// would read "Looking up supplier" with nothing after it.
     /// </summary>
+    /// <summary>
+    /// Reject a closing summary that spells out a company name.
+    ///
+    /// gemma4 cannot reproduce Traditional Chinese proper nouns reliably: asked
+    /// to write a summary it turned 華碩電腦股份有限公司 into 鈺玮电讯股份有限公司
+    /// and 聯強國際 into 鼎瑞国际. Wrong vendor names in front of a procurement
+    /// audience destroy trust in everything else on the screen, so any summary
+    /// naming a company is discarded in favour of a generated one. The prompt
+    /// asks for counts and file names; this enforces it.
+    /// </summary>
+    private static string? Vet(AgentContext context, string? closing)
+    {
+        if (string.IsNullOrWhiteSpace(closing)) return null;
+        var text = closing.Trim();
+
+        // Company-name markers common to both scripts. A summary written to the
+        // brief has no reason to contain any of them.
+        string[] markers = ["公司", "有限", "股份", "科技", "電腦", "电脑", "國際", "国际"];
+        if (markers.Any(m => text.Contains(m, StringComparison.Ordinal)))
+            return null;
+
+        return text;
+    }
+
     private static string Describe(AgentContext context, string name, JsonObject args)
     {
         var file = args["filename"]?.GetValue<string>();
