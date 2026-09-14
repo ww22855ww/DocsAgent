@@ -101,12 +101,21 @@ public sealed class ScriptedAgentRunner(
     /// agent replaces. A task worded outside this list sends scripted mode to
     /// the wrong screen, which is worth showing.
     /// </summary>
-    private static readonly string[] EsgKeywords = ["esg", "問卷", "永續", "questionnaire", "survey", "sustainab"];
+    public static readonly string[] EsgKeywords =
+        ["esg", "問卷", "永續", "questionnaire", "survey", "sustainab"];
 
-    private static bool LooksLikeEsg(string prompt)
+    private static bool LooksLikeEsg(string prompt) => MatchedKeywords(prompt).Count > 0;
+
+    /// <summary>
+    /// Which keywords a prompt trips, using the same rule the runner does.
+    ///
+    /// Public so the routing probe measures this implementation rather than a
+    /// copy of it; a copy is how a comparison quietly stops being true.
+    /// </summary>
+    public static IReadOnlyList<string> MatchedKeywords(string prompt)
     {
         var text = prompt.ToLowerInvariant();
-        return EsgKeywords.Any(k => text.Contains(k, StringComparison.OrdinalIgnoreCase));
+        return EsgKeywords.Where(k => text.Contains(k, StringComparison.OrdinalIgnoreCase)).ToList();
     }
 
     private async Task ProcessDocumentAsync(AgentContext context, string filename, CancellationToken ct)

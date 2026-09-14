@@ -372,6 +372,33 @@ default demo runs on mock master data.
 fallbacks in order: switch to Scripted, play
 `docs/media/agent-run-fallback.gif`, or present the walkthrough alone.
 
+## Rehearsal tooling
+
+`POST /api/routing` and `scripts/probe_routing.py` compare how each mode routes a
+task, without running one. Nothing in the console calls the endpoint; it exists so
+the presenter can try twenty phrasings while choosing demo sentences, and have a
+real number ready if asked how reliable routing is.
+
+```bash
+python scripts/probe_routing.py -n 5
+```
+
+Both sides go through the real implementations: the system prompt comes from
+`LlmAgentRunner.BuildSystemPrompt` and the keyword rule from
+`ScriptedAgentRunner.MatchedKeywords`. Keep it that way. A probe holding its own
+copy of either keeps reporting a comparison that stopped being true, which is
+worse than having no probe.
+
+The built-in matrix is graded on purpose, and the last group matters most: a test
+that only shows the keyword rule missing invites "then add the keyword", so it
+also shows what adding one costs. `永續` is in the list to catch 永續調查表, and
+that is exactly why a task mentioning the 永續發展部 gets routed to the wrong
+screen. Measured at 5 runs each: keyword 3/8, agent 8/8, about 1.5 s per decision.
+
+**Do not put those figures in the main demo flow.** The room does not yet know
+what an agent is; routing statistics answer a question nobody asked and make the
+system sound shaky. Keep them for Q&A.
+
 ## Presentation aid
 
 `docs/architecture-walkthrough.html` is a twelve-step interactive walkthrough

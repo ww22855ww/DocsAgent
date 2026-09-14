@@ -89,6 +89,16 @@ public sealed class LlmAgentRunner(
           how they get corrupted.
         """;
 
+    /// <summary>
+    /// The exact system prompt a real run uses.
+    ///
+    /// Exposed so the routing probe asks the model the same question the agent
+    /// would. A probe with its own copy of the prompt would keep passing after
+    /// the real one changed, which is worse than having no probe.
+    /// </summary>
+    public static string BuildSystemPrompt(DateTime today)
+        => string.Format(SystemPromptTemplate, today.ToString("yyyy-MM-dd"));
+
     public async Task RunAsync(AgentContext context, CancellationToken ct)
     {
         var task = context.Task;
@@ -99,7 +109,7 @@ public sealed class LlmAgentRunner(
 
         var messages = new List<LlmMessage>
         {
-            LlmMessage.System(string.Format(SystemPromptTemplate, today)),
+            LlmMessage.System(BuildSystemPrompt(DateTime.Now)),
             LlmMessage.User(task.Prompt),
         };
 
