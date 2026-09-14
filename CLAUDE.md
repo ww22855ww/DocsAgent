@@ -335,7 +335,13 @@ leaves the two-vendor case on; `-Full` also reseeds the master tables, which is
 only needed after editing `db/init.sql`.
 
 `GET /api/health/services` probes all six dependencies in parallel and the
-console shows it as a strip at the top. Reachability only: the LLM check is an
+console shows it as a strip at the top. `DBQUERY_MODE` and `MAIL_ENABLED` in
+that strip are read from mcp-worker's own `/health`, not from agent-api's copy:
+both services load the same `.env`, so restarting only one leaves the other
+reporting a stale switch. Getting that wrong once claimed mail was off while the
+worker was actually sending. When the worker does not answer, the strip says the
+state is unknown rather than defaulting to off. **Changing `.env` needs both
+services restarted:** `docker compose up -d agent-api mcp-worker`. Reachability only: the LLM check is an
 unauthenticated call whose 401 still proves DNS, TLS and the route, so checking
 costs no tokens and sends no mail. The SQL API is marked optional because the
 default demo runs on mock master data.

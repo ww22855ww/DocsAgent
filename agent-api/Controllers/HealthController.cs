@@ -29,6 +29,8 @@ public sealed class HealthController(
     [HttpGet("services")]
     public async Task<IActionResult> Services(CancellationToken ct)
     {
+        var workerTask = WorkerModes(ct);
+
         var checks = await Task.WhenAll(
             Postgres(ct),
             Http("mcp-worker", "MCP Worker", McpHealthUrl(), ct),
@@ -39,6 +41,7 @@ public sealed class HealthController(
 
         var required = checks.Where(c => c.Required).ToList();
         var ready = required.All(c => c.Ok);
+        var worker = await workerTask;
 
         return Ok(new
         {
@@ -49,12 +52,47 @@ public sealed class HealthController(
                 agent = options.AgentMode,
                 llmProvider = options.Primary.Name,
                 llmModel = options.Primary.Model,
-                dbquery = config["DBQUERY_MODE"] ?? "mock",
-                mailEnabled = (config["MAIL_ENABLED"] ?? "false").Trim().ToLowerInvariant() is "true" or "1",
+
+                // Read from mcp-worker, not from this process. Both services load
+                // the same .env, so restarting only one leaves the other holding a
+                // stale copy. Reporting our own would then claim mail is off while
+                // the worker actually sends, which is the dangerous direction to be
+                // wrong in. Null means the worker did not answer.
+                dbquery = worker?.Dbquery,
+                mailEnabled = worker?.MailEnabled,
+                modeSource = worker is null ? "unavailable" : "mcp-worker",
+
                 busy = tasks.IsBusy,
             },
             services = checks,
         });
+    }
+
+    private sealed record WorkerMode(string Dbquery, bool MailEnabled);
+
+    /// <summary>
+    /// Ask mcp-worker what it is actually configured to do. It owns the mapping
+    /// backend and the mail switch, so it is the only honest source for both.
+    /// </summary>
+    private async Task<WorkerMode?> WorkerModes(CancellationToken ct)
+    {
+        try
+        {
+            var http = httpFactory.CreateClient();
+            http.Timeout = Probe;
+            using var res = await http.GetAsync(McpHealthUrl(), ct);
+            if (!res.IsSuccessStatusCode) return null;
+
+            using var doc = System.Text.Json.JsonDocument.Parse(await res.Content.ReadAsStringAsync(ct));
+            var root = doc.RootElement;
+            return new WorkerMode(
+                root.TryGetProperty("dbquery_mode", out var m) ? m.GetString() ?? "?" : "?",
+                root.TryGetProperty("mail_enabled", out var e) && e.GetBoolean());
+        }
+        catch
+        {
+            return null;
+        }
     }
 
     private string McpHealthUrl()

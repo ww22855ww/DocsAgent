@@ -65,8 +65,10 @@ export interface HealthReport {
     agent: string
     llmProvider: string
     llmModel: string
-    dbquery: string
-    mailEnabled: boolean
+    // Sourced from mcp-worker; null when it did not answer.
+    dbquery: string | null
+    mailEnabled: boolean | null
+    modeSource: string
     busy: boolean
   }
   services: ServiceStatus[]

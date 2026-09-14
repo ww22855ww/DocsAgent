@@ -60,8 +60,14 @@ export default function HealthStrip() {
 
       <span className="modes">
         <span className="mode-chip">{report.mode.llmModel}</span>
-        <span className="mode-chip">主檔 {report.mode.dbquery}</span>
-        <span className="mode-chip">{report.mode.mailEnabled ? '寄信開啟' : '寄信關閉'}</span>
+        <span className="mode-chip">主檔 {report.mode.dbquery ?? '未知'}</span>
+        {/* Showing "off" for an unknown value would invite sending real mail by
+            accident, so an unreadable switch is called out rather than guessed. */}
+        <span className={`mode-chip ${report.mode.mailEnabled ? 'live' : ''}`}>
+          {report.mode.mailEnabled === null
+            ? '寄信狀態未知'
+            : report.mode.mailEnabled ? '寄信開啟' : '寄信關閉'}
+        </span>
       </span>
 
       <button type="button" className="link" onClick={() => setOpen(!open)}>

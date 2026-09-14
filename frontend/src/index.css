@@ -290,3 +290,14 @@ table.documents tr:last-child td { border-bottom: 0; }
   .modes { margin-left: 0; }
   .health-list .svc { min-width: 0; }
 }
+
+/* Mail is live: this one must not blend in with the other mode chips. */
+.mode-chip.live {
+  border-color: #9a6207;
+  background: #fdf1dc;
+  color: #9a6207;
+  font-weight: 600;
+}
+@media (prefers-color-scheme: dark) {
+  .mode-chip.live { border-color: #e8b45c; background: #332714; color: #e8b45c; }
+}
