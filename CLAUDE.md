@@ -501,6 +501,13 @@ Two claims in it are easy to get wrong and both were wrong once:
   the page must say which is which: the agent loop never sees document bodies,
   the classifier receives them in full. mcp-worker has no LLM access at all.
 
+**Quote no figure the repo cannot back.** The opening line claimed a daily
+document volume that was invented; it is now stated without a count. Everything
+else it quotes is checkable: limits from `.env`, model and mode from the health
+endpoint, tool names from the live MCP list, file names from MockData, vendor
+codes from EBS, and the run outcomes from measured runs. An unverifiable number
+in the first sentence is the easiest thing in the deck to challenge.
+
 Keep its figures true to the code. The numbers it quotes (3 archived / 1 review
 in agent mode, 2 / 2 scripted), the vendor codes, and the transcription bug it
 cites are all real results from this repo.
