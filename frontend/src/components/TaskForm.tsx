@@ -7,7 +7,14 @@ interface Props {
   onSubmit: () => void
 }
 
-const PRESETS = ['處理今天 SCM 文件', '處理今天 SCM 部門的品檢文件']
+/* The last one deliberately never says ESG. It is the sentence the keyword rule
+   misses and the agent gets right, so it has to be one click away on stage. */
+const PRESETS = [
+  '處理今天 SCM 文件',
+  '處理今天 SCM 部門的品檢文件',
+  '處理今年的 ESG 供應商問卷',
+  '整理各家廠商回覆的碳排與勞權自評表',
+]
 
 export default function TaskForm({
   prompt, mode, running, onPromptChange, onModeChange, onSubmit,
