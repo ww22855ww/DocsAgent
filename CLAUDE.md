@@ -308,6 +308,14 @@ into the image, so without the mount the portal serves whatever existed at build
 time and regenerating the files changes nothing. That silently broke the scenario
 switch once.
 
+**The portal's result list must not carry its own copy of the vendor name.** It
+had 勝宏科技 compiled into `MockDocumentStore`, so in the default scenario the
+listing said one vendor while the workbook said 百辰光電 and the trace said
+百辰光電 — visible to anyone who opened the portal mid-demo. The row now reads
+`MockData/quality_002.vendor.txt`, which `gen_mock_data.py` writes alongside the
+workbook, so the switch reaches both. Any other per-scenario field belongs in
+that file too, never in the image.
+
 **Historic note: mock master data is real.** The suppliers and part numbers in `db/init.sql`
 are Oracle EBS vendors with 2026 purchase orders at operating unit 152, and items
 actually bought from them. `DBQUERY_MODE=mock` and `DBQUERY_MODE=real` therefore

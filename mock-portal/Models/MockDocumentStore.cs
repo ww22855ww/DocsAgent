@@ -22,7 +22,7 @@ public sealed class MockDocumentStore
     private static readonly DocumentRecord[] Documents =
     [
         new("supplier_001.xlsx", "INV-2026-0912", "SCM", "Invoice",       "華碩電腦股份有限公司", "2026-09-12", "5.3 KB"),
-        new("quality_002.xlsx",  "LOT-26-99123",  "SCM", "QualityReport", "勝宏科技",            "2026-09-12", "5.1 KB"),
+        new("quality_002.xlsx",  "LOT-26-99123",  "SCM", "QualityReport", "百辰光電",            "2026-09-12", "5.1 KB"),
         new("debit_003.csv",     "DN-2026-0093",  "SCM", "DebitNote",     "聯強國際股份有限公司", "2026-09-12", "148 B"),
         new("unknown_004.txt",   "-",             "SCM", "Other",         "至上電子股份有限公司", "2026-09-12", "382 B"),
     ];
@@ -44,8 +44,30 @@ public sealed class MockDocumentStore
         if (!IsAll(documentType))
             q = q.Where(d => d.DocumentType.Equals(documentType, StringComparison.OrdinalIgnoreCase));
 
-        return q.ToList();
+        return q.Select(WithGeneratedVendor).ToList();
     }
+
+    /// <summary>
+    /// The quality report's vendor is switched by scripts/scenario.py, which
+    /// rewrites both the workbook and a marker file next to it. Reading that
+    /// marker keeps the result list saying the same name the document says; a
+    /// constant compiled into the image cannot, because MockData is mounted
+    /// over at run time and the switch never reaches the image.
+    /// </summary>
+    private DocumentRecord WithGeneratedVendor(DocumentRecord record)
+    {
+        if (!record.FileName.Equals(VendorMarkerFor, StringComparison.OrdinalIgnoreCase))
+            return record;
+
+        var marker = Path.Combine(_dataDir, VendorMarkerFile);
+        if (!File.Exists(marker)) return record;
+
+        var vendor = File.ReadAllText(marker).Trim();
+        return string.IsNullOrEmpty(vendor) ? record : record with { Vendor = vendor };
+    }
+
+    private const string VendorMarkerFor = "quality_002.xlsx";
+    private const string VendorMarkerFile = "quality_002.vendor.txt";
 
     public IReadOnlyList<EsgSurveyRecord> QuerySurveys(string status)
     {

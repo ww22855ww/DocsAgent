@@ -80,6 +80,24 @@ ESG，去了問卷那個分頁：
 前半段是 Scripted，第二步就寫著「從入口網站取得今天的 SCM 文件」；後半段是 Agent，
 第二步變成「下載 ESG 問卷」，旁邊附上它的判斷理由。兩段都是實跑，沒有剪接。
 
+## agent 面對的網站
+
+模擬的企業入口網站（`http://localhost:5100`，帳號 `admin` 密碼 `123456`）。
+登入、選條件、按查詢、逐份下載，都是 Playwright 實際操作，agent 看不到任何選擇器。
+
+左邊選單是兩個不同的區塊，這就是那個路由決定的來源。SUPPLY CHAIN 下的
+Document Query：
+
+![入口網站的 SCM 文件查詢畫面](docs/media/portal-scm.png)
+
+SUSTAINABILITY 下的 ESG Questionnaires，另一組查詢條件、另一條下載路徑：
+
+![入口網站的 ESG 問卷畫面](docs/media/portal-esg.png)
+
+查詢刻意忽略日期和年份，任何一天跑都回同一批檔案，demo 不會因為換日而爆掉。
+列表上 `quality_002.xlsx` 的廠商名稱跟文件裡印的是同一個來源，切換情境時兩邊
+一起變。
+
 ---
 
 ## 現場可能被問到的問題

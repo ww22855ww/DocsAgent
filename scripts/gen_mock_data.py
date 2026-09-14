@@ -264,6 +264,14 @@ def main():
         note = f"  vendor={vendor}" if build is quality_report else ""
         print(f"[{section}] wrote {target.name} ({target.stat().st_size} bytes){note}")
 
+    # The portal's result list reads this rather than carrying its own copy of
+    # the name. Without it the listing kept saying whichever vendor was compiled
+    # into the image while the document said something else, and anyone who
+    # opened the portal during the demo saw the two disagree.
+    marker = OUT / "quality_002.vendor.txt"
+    marker.write_text(vendor, encoding="utf-8")
+    print(f"[SCM] wrote {marker.name} ({vendor})")
+
 
 if __name__ == "__main__":
     main()
