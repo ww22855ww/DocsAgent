@@ -380,21 +380,22 @@ as "整理各家廠商回覆的碳排與勞權自評表" sends scripted to the w
 the agent reads the intent and picks ESG. That contrast is the point.
 
 **The two modes are expected to disagree, and the demo turns on how.**
-quality_002.xlsx names 勝宏科技 with no supplier code. Scripted always sends it to
-manual review. What the agent does depends on whether the name resolves, which
-`scripts/scenario.py` switches by enabling the Thailand entity of that real
-two-company vendor group:
+quality_002.xlsx carries a vendor name and no supplier code, so scripted always
+sends it to manual review. What the agent does depends on whether that name
+resolves, and `scripts/scenario.py` switches it by regenerating the document
+with a different name — 百辰光電 (one EBS record) or 勝宏科技 (Huizhou and
+Thailand, two records):
 
-| | scripted | agent |
-|---|---|---|
-| unique (default) | manual review, no code | archived as 40891 |
-| ambiguous | manual review, no code | manual review, both candidates named |
+| | vendor in the document | scripted | agent |
+|---|---|---|---|
+| unique (default) | 百辰光電 | manual review, no code | archived as 40891 |
+| ambiguous | 勝宏科技 | manual review, no code | manual review, both candidates named |
 
 Both agent outcomes are correct. It recovers when the data supports a decision
 and declines when it does not, and the prompt forbids picking a row out of an
-ambiguous result. In `DBQUERY_MODE=real` the name is always ambiguous, because
-both companies really exist. Reset to `unique` after demonstrating the ambiguous
-case.
+ambiguous result. Both names come from live EBS master data in either
+`DBQUERY_MODE`, so the ambiguity is found rather than staged. Reset to `unique`
+after demonstrating the ambiguous case.
 
 **The model cannot reproduce Traditional Chinese proper nouns, anywhere.**
 Asked to write the closing summary it turned 華碩電腦股份有限公司 into
