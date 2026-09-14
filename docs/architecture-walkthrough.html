@@ -642,11 +642,31 @@ svg .node-box { transition: opacity .25s ease; }
   }
 
   function agentLoopFigure() {
-    var cx = 450, cy = 214, r = 118;
-    var out = '<g>';
-    out += '<text x="450" y="46" text-anchor="middle" font-size="15" font-weight="700">Agent：不是一條流程，是一個迴圈</text>';
+    // Geometry, not eyeballing. The old version placed the four stages on a
+    // radius narrow enough that the left and right boxes closed to within 100px,
+    // and the centre caption was wider than that, so the text sat on top of
+    // them. Everything below is derived from RING and NODE_W so the clearances
+    // hold if the labels change.
+    var cx = 450, cy = 226, RING = 136;
+    var NODE_W = 140, NODE_H = 44, ARC = 118;
 
-    out += '<circle cx="' + cx + '" cy="' + cy + '" r="' + r + '" fill="none" stroke="var(--line)" stroke-dasharray="3 5"/>';
+    function at(deg, radius) {
+      var rad = deg * Math.PI / 180;
+      return { x: cx + Math.cos(rad) * radius, y: cy + Math.sin(rad) * radius };
+    }
+
+    var out = '<g>';
+    out += '<text x="450" y="44" text-anchor="middle" font-size="15" font-weight="700">Agent：不是一條流程，是一個迴圈</text>';
+
+    out += '<circle cx="' + cx + '" cy="' + cy + '" r="' + RING + '" fill="none" stroke="var(--line)" stroke-dasharray="3 6"/>';
+
+    // Four arcs, each starting clear of one box and stopping clear of the next.
+    [[-64, -26], [26, 64], [116, 154], [206, 244]].forEach(function (seg) {
+      var a = at(seg[0], ARC), b = at(seg[1], ARC);
+      out += '<path d="M ' + a.x.toFixed(1) + ' ' + a.y.toFixed(1) +
+             ' A ' + ARC + ' ' + ARC + ' 0 0 1 ' + b.x.toFixed(1) + ' ' + b.y.toFixed(1) +
+             '" fill="none" stroke="currentColor" stroke-width="1.5" marker-end="url(#ar)"/>';
+    });
 
     var ring = [
       { a: -90, t: "看目前狀況", k: "decide" },
@@ -654,36 +674,31 @@ svg .node-box { transition: opacity .25s ease; }
       { a: 90,  t: "呼叫一個工具", k: "do" },
       { a: 180, t: "讀取結果", k: "do" }
     ];
-    ring.forEach(function (n, i) {
-      var rad = n.a * Math.PI / 180;
-      var x = cx + Math.cos(rad) * r, y = cy + Math.sin(rad) * r;
+    ring.forEach(function (n) {
+      var c = at(n.a, RING);
       var fill = n.k === "decide" ? "var(--decide-soft)" : "var(--do-soft)";
       var stroke = n.k === "decide" ? "var(--decide)" : "var(--do)";
-      out += '<rect x="' + (x - 68) + '" y="' + (y - 22) + '" width="136" height="44" rx="9" fill="' + fill + '" stroke="' + stroke + '"/>';
-      out += '<text x="' + x + '" y="' + (y + 5) + '" text-anchor="middle" font-size="12.5" fill="' + stroke + '" font-weight="500">' + n.t + '</text>';
+      out += '<rect x="' + (c.x - NODE_W / 2) + '" y="' + (c.y - NODE_H / 2) +
+             '" width="' + NODE_W + '" height="' + NODE_H + '" rx="9" fill="' + fill + '" stroke="' + stroke + '"/>';
+      out += '<text x="' + c.x + '" y="' + (c.y + 5) + '" text-anchor="middle" font-size="12.5" fill="' +
+             stroke + '" font-weight="500">' + n.t + '</text>';
     });
 
-    out += '<path d="M ' + (cx + 72) + ' ' + (cy - 78) + ' A 104 104 0 0 1 ' + (cx + 96) + ' ' + (cy - 30) +
-           '" fill="none" stroke="currentColor" stroke-width="1.5" marker-end="url(#ar)"/>';
-    out += '<path d="M ' + (cx + 96) + ' ' + (cy + 30) + ' A 104 104 0 0 1 ' + (cx + 70) + ' ' + (cy + 78) +
-           '" fill="none" stroke="currentColor" stroke-width="1.5" marker-end="url(#ar)"/>';
-    out += '<path d="M ' + (cx - 70) + ' ' + (cy + 78) + ' A 104 104 0 0 1 ' + (cx - 96) + ' ' + (cy + 30) +
-           '" fill="none" stroke="currentColor" stroke-width="1.5" marker-end="url(#ar)"/>';
-    out += '<path d="M ' + (cx - 96) + ' ' + (cy - 30) + ' A 104 104 0 0 1 ' + (cx - 70) + ' ' + (cy - 78) +
-           '" fill="none" stroke="currentColor" stroke-width="1.5" marker-end="url(#ar)"/>';
+    // Centre caption. The clear width is the gap between the left and right
+    // boxes, so keep these lines short.
+    out += '<text x="' + cx + '" y="' + (cy - 6) + '" text-anchor="middle" font-size="11.5" fill="var(--muted)">一次只做一步</text>';
+    out += '<text x="' + cx + '" y="' + (cy + 13) + '" text-anchor="middle" font-size="11.5" fill="var(--muted)">看完結果再決定</text>';
 
-    out += '<text x="' + cx + '" y="' + (cy - 6) + '" text-anchor="middle" font-size="12" fill="var(--muted)">每一圈只做一件事</text>';
-    out += '<text x="' + cx + '" y="' + (cy + 14) + '" text-anchor="middle" font-size="12" fill="var(--muted)">看完結果再決定下一步</text>';
+    out += '<rect x="24" y="404" width="256" height="76" rx="10" fill="var(--decide-soft)" stroke="var(--decide)"/>';
+    out += '<text x="152" y="430" text-anchor="middle" font-size="12.5" font-weight="700" fill="var(--decide)">模型負責</text>';
+    out += '<text x="152" y="451" text-anchor="middle" font-size="11.5" fill="var(--ink-2)">判斷、分類、例外處理</text>';
+    out += '<text x="152" y="470" text-anchor="middle" font-size="11.5" fill="var(--ink-2)">它不碰 selector，也不寫 SQL</text>';
 
-    out += '<rect x="628" y="384" width="248" height="76" rx="10" fill="var(--surface-sub)" stroke="var(--line)"/>';
-    out += '<text x="752" y="410" text-anchor="middle" font-size="12.5" font-weight="700">停止條件由程式決定</text>';
-    out += '<text x="752" y="431" text-anchor="middle" font-size="11.5" fill="var(--ink-2)">最多 30 步 · 單一工具 60 秒</text>';
-    out += '<text x="752" y="450" text-anchor="middle" font-size="11.5" fill="var(--ink-2)">重複呼叫同一工具即中止</text>';
+    out += '<rect x="620" y="404" width="256" height="76" rx="10" fill="var(--surface-sub)" stroke="var(--line)"/>';
+    out += '<text x="748" y="430" text-anchor="middle" font-size="12.5" font-weight="700">停止條件由程式決定</text>';
+    out += '<text x="748" y="451" text-anchor="middle" font-size="11.5" fill="var(--ink-2)">最多 30 步 · 單一工具 60 秒</text>';
+    out += '<text x="748" y="470" text-anchor="middle" font-size="11.5" fill="var(--ink-2)">重複呼叫同一工具即中止</text>';
 
-    out += '<rect x="24" y="384" width="248" height="76" rx="10" fill="var(--decide-soft)" stroke="var(--decide)"/>';
-    out += '<text x="148" y="410" text-anchor="middle" font-size="12.5" font-weight="700" fill="var(--decide)">模型負責</text>';
-    out += '<text x="148" y="431" text-anchor="middle" font-size="11.5" fill="var(--ink-2)">判斷、分類、例外處理</text>';
-    out += '<text x="148" y="450" text-anchor="middle" font-size="11.5" fill="var(--ink-2)">它不碰 selector，也不寫 SQL</text>';
     out += '</g>';
     return out;
   }

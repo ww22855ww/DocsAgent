@@ -463,6 +463,13 @@ next: document text does reach the internal LLM during classification; portal,
 AD and database credentials stay in mcp-worker and never enter a model prompt.
 Do not soften that into "the data stays local", which is not true.
 
+**Derive figure geometry, do not eyeball it.** The loop figure placed four
+stages on a radius that closed the left and right boxes to within 100px, then
+centred a caption wider than that, so the text sat on the boxes. Positions now
+come from named constants and the arcs stop short of each box by construction.
+When a label sits inside a shape, check the clear width against the label: a CJK
+glyph is about the font size wide, a Latin one about half.
+
 **A step gets the architecture diagram only when topology is the point.** Four
 consecutive steps lighting up subsets of the same nine boxes showed where work
 happened but not what each step was about, and read as treading water before
