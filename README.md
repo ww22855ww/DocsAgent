@@ -98,6 +98,23 @@ SUSTAINABILITY 下的 ESG Questionnaires，另一組查詢條件、另一條下�
 列表上 `quality_002.xlsx` 的廠商名稱跟文件裡印的是同一個來源，切換情境時兩邊
 一起變。
 
+瀏覽器是無頭跑的，所以「它到底有沒有真的在操作網頁」平常看不到。Playwright
+自己錄得下來：
+
+![Playwright 登入、填查詢條件、逐份下載](docs/media/portal-playwright.gif)
+
+這是 `download_documents` 那一次呼叫的真實錄影，不是重演——登入、填日期、選
+SCM、按 Search、四個 Download 連結逐一點過去。唯一的加工是把每個動作之間放慢
+450 毫秒，因為原速整段跑完不到一秒，錄出來只有幾張空白畫面。
+
+錄製是關著的，兩個環境變數臨時打開就好，不影響跑著的服務：
+
+```bash
+docker exec -e PORTAL_VIDEO_DIR=/app/output/video -e PORTAL_SLOW_MO_MS=450   adp-mcp-worker python -c "from tools import browser; browser.download_documents(date='2026-09-14')"
+```
+
+影片會寫到 `data/output/video/`（webm）。
+
 ---
 
 ## 現場可能被問到的問題

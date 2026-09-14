@@ -22,6 +22,37 @@ NAV_TIMEOUT_MS = 20_000
 DOWNLOAD_TIMEOUT_MS = 30_000
 
 
+def _video_options() -> dict:
+    """Record the session when PORTAL_VIDEO_DIR is set, otherwise record nothing.
+
+    The browser is headless, so "does it really drive the site?" has no visible
+    answer; Playwright's own recording is the one that cannot be staged, because
+    it comes out of the same run the trace describes. Off by default: recording
+    costs a video file per call and the demo never needs it. Read at call time
+    so a one-off `docker exec -e PORTAL_VIDEO_DIR=...` can turn it on without
+    touching the running server's environment.
+    """
+    out = os.environ.get("PORTAL_VIDEO_DIR", "").strip()
+    if not out:
+        return {}
+    os.makedirs(out, exist_ok=True)
+    return {"record_video_dir": out, "record_video_size": {"width": 1280, "height": 720}}
+
+
+def _slow_mo_ms() -> float:
+    """Pace the browser for a recording. Zero — full speed — everywhere else.
+
+    The whole login-query-download sequence finishes in about a second, so a
+    real-time video is a blur of blank frames. Pacing it is the only way to see
+    it happen, and it is the same code either way: nothing is re-enacted for
+    the camera. Say so wherever the recording is shown.
+    """
+    try:
+        return max(0.0, float(os.environ.get("PORTAL_SLOW_MO_MS", "0")))
+    except ValueError:
+        return 0.0
+
+
 class Journal:
     """Records what the browser actually did, step by step.
 
@@ -162,11 +193,12 @@ def _fetch(label: str, search, query: dict) -> dict:
     j = Journal()
 
     with sync_playwright() as p:
-        browser = p.chromium.launch(args=["--no-sandbox", "--disable-dev-shm-usage"])
+        browser = p.chromium.launch(args=["--no-sandbox", "--disable-dev-shm-usage"],
+                                    slow_mo=_slow_mo_ms())
         j.add("啟動瀏覽器", "chromium (headless)",
               "在容器內開一個沒有畫面的瀏覽器")
         try:
-            ctx = browser.new_context(accept_downloads=True)
+            ctx = browser.new_context(accept_downloads=True, **_video_options())
             page = ctx.new_page()
             page.set_default_timeout(NAV_TIMEOUT_MS)
 

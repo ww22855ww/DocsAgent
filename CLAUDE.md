@@ -308,6 +308,16 @@ into the image, so without the mount the portal serves whatever existed at build
 time and regenerating the files changes nothing. That silently broke the scenario
 switch once.
 
+**Recording the browser is off by default and paced on purpose.**
+`PORTAL_VIDEO_DIR` turns on Playwright's own video for a run and
+`PORTAL_SLOW_MO_MS` paces it; both are read at call time, so
+`docker exec -e ...` records without restarting the server. The pacing is not
+cosmetic dishonesty and must always be disclosed where the recording is shown:
+the real sequence finishes in about a second and records as blank frames.
+Converting the webm needs a real ffmpeg — the one bundled with Playwright muxes
+webm only, so the conversion runs in a throwaway `python:3.12-slim` container
+with `imageio` + `av`.
+
 **The portal's result list must not carry its own copy of the vendor name.** It
 had 勝宏科技 compiled into `MockDocumentStore`, so in the default scenario the
 listing said one vendor while the workbook said 百辰光電 and the trace said
