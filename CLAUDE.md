@@ -443,7 +443,7 @@ system sound shaky. Keep them for Q&A.
 
 ## Presentation aid
 
-`docs/architecture-walkthrough.html` is a ten-step interactive walkthrough
+`docs/architecture-walkthrough.html` is an eleven-step interactive walkthrough
 used to explain the demo at the department meeting, published as an Artifact at
 https://claude.ai/code/artifact/04668997-0199-4a6f-b8ac-d3c15a2c51d9
 
@@ -484,7 +484,21 @@ happened but not what each step was about, and read as treading water before
 anything ran. Two steps still use it and they are not adjacent; everything else
 is purpose-drawn.
 
-**The execution act is three steps, not five.** 解析與分類 and 對應主檔 were
+**The execution act opens on the whole task, then zooms in.** Explaining the
+loop and then showing two individual decisions left the orchestration invisible:
+nobody could see what one sentence actually produced. `orchestrationFigure` is a
+measured run pulled from `task_steps` — 17 steps, 57 seconds, one row per
+document — and the rows are deliberately ragged, because differing lengths are
+the evidence that nothing wrote the sequence down. Re-measure it if the flow
+changes; a made-up trace on that page would be the easiest thing in the deck to
+disprove, since the console shows the real one minutes later.
+
+Colour on that figure means *who did the work*, not who chose it: in agent mode
+the model chose every step, and only classification is performed by it. The
+legend and the caption have to say both, or the figure contradicts the trace the
+audience is about to watch.
+
+**The two middle execution steps are one, not two.** 解析與分類 and 對應主檔 were
 separate pages narrating one straight line, and the lookup in particular is a
 single call with three possible answers — a shape, not a lecture. They are now
 one step behind `pipelineFigure`: 全文 → 分類 → 欄位 → 查主檔 → unique /

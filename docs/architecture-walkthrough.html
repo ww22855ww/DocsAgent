@@ -751,6 +751,106 @@ svg .node-box { transition: opacity .25s ease; }
     return out;
   }
 
+  function orchestrationFigure() {
+    var LABEL_X = 22, PILL_X = 150, GAP = 11, ROW_H = 44;
+
+    function pill(x, y, w, kind, n, t) {
+      var fill = kind === "decide" ? "var(--decide-soft)" : kind === "warn" ? "var(--warn-soft)" : "var(--do-soft)";
+      var line = kind === "decide" ? "var(--decide)" : kind === "warn" ? "var(--warn)" : "var(--do)";
+      var g = '<rect x="' + x + '" y="' + y + '" width="' + w + '" height="32" rx="7" fill="' + fill + '" stroke="' + line + '"' +
+              (kind === "auto" ? ' stroke-dasharray="4 3"' : '') + '/>';
+      g += '<text x="' + (x + 11) + '" y="' + (y + 21) + '" font-size="10" class="mono" fill="var(--muted)">' + n + '</text>';
+      g += '<text x="' + (x + 30) + '" y="' + (y + 21) + '" font-size="11.5" fill="' + line + '">' + t + '</text>';
+      return g;
+    }
+
+    function row(y, label, mono, pills) {
+      var g = '<text x="' + LABEL_X + '" y="' + (y + 21) + '" font-size="11.5"' +
+              (mono ? ' class="mono"' : ' font-weight="700"') + ' fill="var(--ink-2)">' + label + '</text>';
+      var x = PILL_X;
+      pills.forEach(function (q) {
+        g += pill(x, y, q.w, q.k, q.n, q.t);
+        x += q.w + GAP;
+      });
+      return { svg: g, end: x - GAP };
+    }
+
+    var out = '<g>';
+    out += '<text x="450" y="30" text-anchor="middle" font-size="15" font-weight="700">一句話進來，模型自己排出 17 步</text>';
+
+    out += '<rect x="250" y="46" width="400" height="34" rx="9" fill="var(--surface-sub)" stroke="var(--line)"/>';
+    out += '<text x="450" y="68" text-anchor="middle" font-size="12.5">使用者輸入：處理今天 SCM 文件</text>';
+    out += '<path d="M 450 80 L 450 100" stroke="currentColor" stroke-width="1.4" marker-end="url(#ar)"/>';
+
+    // Legend, because the colours answer "who did the work", while the caption
+    // below answers "who chose it" — and those are different questions.
+    out += '<rect x="596" y="24" width="14" height="12" rx="3" fill="var(--decide-soft)" stroke="var(--decide)"/>';
+    out += '<text x="616" y="34" font-size="11" fill="var(--ink-2)">模型自己做</text>';
+    out += '<rect x="700" y="24" width="14" height="12" rx="3" fill="var(--do-soft)" stroke="var(--do)"/>';
+    out += '<text x="720" y="34" font-size="11" fill="var(--ink-2)">程式執行</text>';
+    out += '<rect x="790" y="24" width="14" height="12" rx="3" fill="var(--warn-soft)" stroke="var(--warn)"/>';
+    out += '<text x="810" y="34" font-size="11" fill="var(--ink-2)">轉人工</text>';
+
+    var r = row(104, "準備", false, [
+      { n: 1, w: 104, k: "do", t: "接下任務" },
+      { n: 2, w: 178, k: "do", t: "download_documents" },
+      { n: 3, w: 168, k: "do", t: "extract_documents" }
+    ]);
+    out += r.svg;
+
+    var docs = [
+      { f: "supplier_001.xlsx", pills: [
+        { n: 4, w: 92,  k: "decide", t: "分類" },
+        { n: 5, w: 150, k: "do", t: "search_supplier" },
+        { n: 6, w: 126, k: "do", t: "search_part" },
+        { n: 7, w: 146, k: "do", t: "archive_record" }
+      ] },
+      { f: "quality_002.xlsx", pills: [
+        { n: 8, w: 92,  k: "decide", t: "分類" },
+        { n: 9, w: 178, k: "do", t: "search_supplier 用名稱" },
+        { n: 10, w: 146, k: "do", t: "archive_record" }
+      ] },
+      { f: "debit_003.csv", pills: [
+        { n: 11, w: 92,  k: "decide", t: "分類" },
+        { n: 12, w: 150, k: "do", t: "search_supplier" },
+        { n: 13, w: 146, k: "do", t: "archive_record" }
+      ] },
+      { f: "unknown_004.txt", pills: [
+        { n: 14, w: 92,  k: "decide", t: "分類" },
+        { n: 15, w: 196, k: "warn", t: "notify_manual_review" }
+      ] }
+    ];
+
+    var top = 160, ends = [];
+    docs.forEach(function (d, i) {
+      var rr = row(top + i * ROW_H, d.f, true, d.pills);
+      out += rr.svg;
+      ends.push(rr.end);
+    });
+
+    // A bracket down the ragged right edge. The unevenness is the point, so
+    // point at it rather than hoping someone notices.
+    var yTop = top + 6, yBot = top + 3 * ROW_H + 26, xb = Math.max.apply(null, ends) + 16;
+    out += '<path d="M ' + xb + ' ' + yTop + ' L ' + (xb + 10) + ' ' + yTop +
+           ' L ' + (xb + 10) + ' ' + yBot + ' L ' + xb + ' ' + yBot + '" fill="none" stroke="var(--decide)" stroke-width="1.3"/>';
+    out += '<text x="' + (xb + 18) + '" y="' + (yTop + 44) + '" font-size="11.5" font-weight="700" fill="var(--decide)">四份文件</text>';
+    out += '<text x="' + (xb + 18) + '" y="' + (yTop + 62) + '" font-size="11.5" font-weight="700" fill="var(--decide)">四種長度</text>';
+
+    var fin = row(top + 4 * ROW_H + 6, "收尾", false, [
+      { n: 16, w: 118, k: "decide", t: "整理結果" },
+      { n: 17, w: 150, k: "do", t: "write_excel" }
+    ]);
+    out += fin.svg;
+    out += '<text x="' + (fin.end + 14) + '" y="' + (top + 4 * ROW_H + 27) + '" font-size="11" fill="var(--muted)">第 17 步不在模型的工具清單裡，由程式固定補上</text>';
+
+    out += '<rect x="22" y="424" width="856" height="76" rx="10" fill="var(--surface-sub)" stroke="var(--line)"/>';
+    out += '<text x="450" y="448" text-anchor="middle" font-size="12.5" font-weight="700">這 17 步沒有寫在任何地方，是一步一步決定出來的</text>';
+    out += '<text x="450" y="472" text-anchor="middle" font-size="11.5" fill="var(--ink-2)">每一格開始之前，都先問過模型一次「下一步做什麼」。顏色說的是誰動手，不是誰決定。</text>';
+    out += '<text x="450" y="490" text-anchor="middle" font-size="11.5" fill="var(--muted)">實測這一次：4 份文件、17 步、57 秒、3 份歸檔 1 份轉人工。換一批文件，這張圖就會長得不一樣。</text>';
+    out += '</g>';
+    return out;
+  }
+
   function routingFigure() {
     var out = '<g>';
     out += '<text x="450" y="40" text-anchor="middle" font-size="15" font-weight="700">同一句話，兩個可能的去處</text>';
@@ -848,7 +948,6 @@ svg .node-box { transition: opacity .25s ease; }
     out += '<rect x="470" y="416" width="400" height="76" rx="10" fill="var(--do-soft)" stroke="var(--do)"/>';
     out += '<text x="670" y="442" text-anchor="middle" font-size="12.5" font-weight="700" fill="var(--do)">其餘每一格都是寫死的程式</text>';
     out += '<text x="670" y="463" text-anchor="middle" font-size="11.5" fill="var(--ink-2)">模型不產生 SQL，也不從多筆裡挑一筆</text>';
-    out += '<text x="670" y="482" text-anchor="middle" font-size="11.5" fill="var(--ink-2)">查的是即時的 Oracle EBS，不是複製品</text>';
     out += '</g>';
     return out;
   }
@@ -996,6 +1095,22 @@ svg .node-box { transition: opacity .25s ease; }
 
     {
       act: "實際執行",
+      fig: "整體編排",
+      concept: orchestrationFigure,
+      title: "一句話下去之後，它自己排了 17 步",
+      lede: "這是實際跑一次的軌跡，直接從資料庫的 task_steps 拉出來的。看整體形狀，比看單一步驟更能說明 agent 在做什麼。",
+      points: [
+        { h: "沒有人寫過這 17 步", p: "程式裡沒有這份清單。模型每做完一步、看到結果，才決定下一步要呼叫誰，直到它認為事情做完了。" },
+        { h: "每份文件的路徑都不一樣", p: "發票多查了一次料號；品檢報告缺代碼，改用名稱查；那封看不懂的信直接轉人工。右邊那個括號就是編排的痕跡。" },
+        { h: "每一格都是模型選的，但只有紫色那幾格是它自己做的", p: "每走一步都先問模型一次「下一步做什麼」，它回答要呼叫哪支工具；工具本身是程式在跑。整趟只有分類這件事是模型親手完成的。" },
+        { h: "收尾不歸模型管", p: "第 17 步的 write_excel 根本不在給模型的工具清單裡，是程式在任務結束後固定呼叫。所以它不可能漏做、早做或做兩次。" }
+      ],
+      extra: '<div class="callout decide"><b>這就是「編排」的意思。</b>' +
+             '固定流程的圖永遠長一樣，因為順序寫死在程式裡；這張圖每跑一次都可能不同，' +
+             '因為順序是當場依照看到的東西決定的。接下來三頁，把其中幾個決定放大來看。</div>'
+    },
+    {
+      act: "實際執行",
       fig: "取得文件",
       concept: routingFigure,
       title: "第一步：先決定要去哪裡拿",
@@ -1023,8 +1138,7 @@ svg .node-box { transition: opacity .25s ease; }
       points: [
         { h: "只有分類那一格看得到文件內容", p: "全文送到公司內部的 LLM 服務。Agent 迴圈那次只拿到檔名和上一步結果，每一步都塞全文進去，token 會直接爆掉。" },
         { h: "分類看的是結構，不是主題", p: "一封談來料異常的信，主題像品檢報告，但它沒有欄位也沒有單號，所以歸為 Unknown。" },
-        { h: "查的是你們的 ERP，不是複製品", p: "每次都當場打公司的 SQL 查詢 API。所以「查得到幾筆」不是我們安排的：百辰光電一筆，勝宏科技惠州和泰國兩筆。" },
-        { h: "模型永遠不產生 SQL", p: "樣板寫死，參數先檢查有沒有引號、分號、註解符號。查詢 API 會執行送進去的任何 SQL，所以這道關卡是承重的。" }
+        { h: "模型永遠不產生 SQL", p: "樣板寫死，參數先檢查有沒有引號、分號、註解符號。查詢 API 會執行送進去的 SQL(API設置白名單防護)。" }
       ],
       extra: '<div class="callout warn">實測發現：模型自己回報的信心值幾乎都是 1.0，<b>包括它答錯那次</b>。所以要不要轉人工是規則說了算，信心值只是最後一道參考。</div>'
     },
