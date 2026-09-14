@@ -208,6 +208,7 @@ public sealed class ScriptedAgentRunner(
             ["task_id"] = context.Task.Id,
         }, $"{filename} 轉人工複核", ct);
 
+        outcome.ReviewReason = result["reason"]?.GetValue<string>() ?? reason;
         outcome.Notified = result["notified"]?.GetValue<bool>() ?? false;
     }
 

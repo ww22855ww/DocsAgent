@@ -96,11 +96,20 @@ def supplier_invoice(path):
     wb.save(path)
 
 
-def quality_report(path):
+# Which vendor the quality report names, and therefore whether the agent can
+# resolve it. Both are real EBS master data, so neither outcome is staged:
+# 百辰光電 matches exactly one vendor, 勝宏科技 matches two real companies in the
+# same group. scripts/scenario.py switches between them by regenerating the file.
+VENDOR_UNIQUE = "百辰光電"      # 百辰光電 - one match in EBS
+VENDOR_AMBIGUOUS = "勝宏科技"   # 勝宏科技 - Huizhou and Thailand
+
+
+def quality_report(path, vendor=VENDOR_UNIQUE):
     """Quality report naming a vendor but carrying no supplier code.
 
-    勝宏科技 is a real two-entity group in EBS (Huizhou and Thailand). Whether
-    this resolves depends on scripts/scenario.py, which is the Phase 7 contrast.
+    The name is the whole exercise: with no code, the agent has to look the
+    vendor up by name, and what it finds decides whether it can finish the
+    document or has to hand it over.
     """
     wb = Workbook()
     ws = wb.active
@@ -108,7 +117,7 @@ def quality_report(path):
     _title(ws, "INCOMING QUALITY INSPECTION REPORT", "A1:C1")
 
     _fields(ws, [
-        ("Vendor", "勝宏科技"),
+        ("Vendor", vendor),
         ("Lot", "LOT-26-99123"),
         ("InspectionDate", "2026-09-12"),
         ("Inspector", "QA-07"),
@@ -242,11 +251,18 @@ BUILDERS = [
 
 
 def main():
+    """Second argument, when given, is the vendor name for the quality report."""
+    vendor = sys.argv[2] if len(sys.argv) > 2 else VENDOR_UNIQUE
+
     OUT.mkdir(parents=True, exist_ok=True)
     for section, name, build in BUILDERS:
         target = OUT / name
-        build(target)
-        print(f"[{section}] wrote {target.name} ({target.stat().st_size} bytes)")
+        if build is quality_report:
+            build(target, vendor)
+        else:
+            build(target)
+        note = f"  vendor={vendor}" if build is quality_report else ""
+        print(f"[{section}] wrote {target.name} ({target.stat().st_size} bytes){note}")
 
 
 if __name__ == "__main__":

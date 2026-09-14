@@ -101,12 +101,44 @@ public sealed class AgentContext(AgentTask task, Action<TaskStep>? onStep = null
         }
     }
 
+    /// <summary>
+    /// The most recent supplier lookup, whatever it returned.
+    ///
+    /// Kept so a manual-review reason can name the real candidates rather than
+    /// asking the model to retype them, which is how 勝宏科技 became 涵星科技.
+    /// </summary>
+    public JsonNode? LastSupplierLookup { get; private set; }
+
     /// <summary>Keep a unique supplier lookup so it can be attached at archive time.</summary>
     public void RememberSupplierLookup(JsonNode? result)
     {
+        LastSupplierLookup = result?.DeepClone();
+
         if (result?["match"]?.GetValue<string>() != "unique") return;
         if ((result["results"] as JsonArray)?.FirstOrDefault()?.DeepClone() is JsonObject hit)
             _supplierHits.Add(hit);
+    }
+
+    /// <summary>
+    /// The candidate list from the last supplier lookup, as authoritative text.
+    /// Empty when the last lookup settled or never happened.
+    /// </summary>
+    public string? UnresolvedSupplierDetail()
+    {
+        var match = LastSupplierLookup?["match"]?.GetValue<string>();
+        if (match is not ("ambiguous" or "not_found")) return null;
+
+        var searched = LastSupplierLookup?["query"]?["supplier_name"]?.GetValue<string>()
+                    ?? LastSupplierLookup?["query"]?["supplier_code"]?.GetValue<string>();
+
+        if (match == "not_found")
+            return $"主檔查不到「{searched}」。";
+
+        var names = (LastSupplierLookup?["results"] as JsonArray ?? [])
+            .Select(r => r?["supplier_code"]?.GetValue<string>() + " " + r?["supplier_name"]?.GetValue<string>())
+            .Where(n => !string.IsNullOrWhiteSpace(n));
+
+        return $"以「{searched}」查主檔命中 {string.Join("、", names)}，無法判斷是哪一家。";
     }
 
     /// <summary>Keep a unique part lookup so it can be attached at archive time.</summary>

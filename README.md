@@ -84,11 +84,11 @@ https://claude.ai/code/artifact/04668997-0199-4a6f-b8ac-d3c15a2c51d9
 ### 4 分 10 秒 · Agent 知道什麼時候不該猜（40 秒）
 
 ```powershell
-python scripts/scenario.py ambiguous
 ./scripts/reset-demo.ps1 -Ambiguous
 ```
 
-再跑一次同樣的 SCM 任務。這次 `勝宏科技` 在主檔裡查到兩家：惠州和泰國。
+這會把品檢報告上的廠商從「百辰光電」換成「勝宏科技」。兩個都是你們主檔裡的
+真實廠商，差別是前者只有一筆，後者有惠州和泰國兩筆。
 
 Agent 沒有挑一個，而是轉人工複核，理由寫著「找到 2 個候選」。
 
@@ -107,17 +107,17 @@ Agent 沒有挑一個，而是轉人工複核，理由寫著「找到 2 個候�
 ## 現場可能被問到的問題
 
 **資料是真的嗎？**
-供應商代碼和料號是真的，取自 org 152 今年有採購單的廠商。文件是模擬的。
-`勝宏科技` 兩家實體的歧義也是真的。
+供應商和料號查的是即時的 Oracle EBS，不是模擬資料。只有文件本身是模擬的。
+`勝宏科技` 兩家實體的歧義是查出來的，不是安排的。
 
 **會不會亂寫 SQL？**
 模型永遠不產生 SQL。`search_supplier` 和 `search_part` 用固定樣板，參數先檢查
 有沒有引號、分號、註解符號。查詢 API 會執行任何送進去的 SQL，所以這道關卡是
 承重的。
 
-**可以切到真的 ERP 嗎？**
-可以，改 `DBQUERY_MODE=real` 重啟 mcp-worker。mock 主檔用的就是真實供應商，
-所以兩種模式回答一致。展示時預設用 mock 是為了可重現。
+**這是查真的 ERP 嗎？**
+是。預設就是 `DBQUERY_MODE=real`，每次查詢當場打公司的 SQL 查詢 API，
+約 50 毫秒。本機還留了一份相同供應商的副本，只有在 ERP 連不上時才切過去用。
 
 **模型跑不動怎麼辦？**
 切 Scripted，畫面一模一樣，流程照走。LLM 端點失效時 agent-api 也會自動切到
@@ -136,9 +136,9 @@ OpenRouter 備援。
 ./scripts/reset-demo.ps1 -Ambiguous   # 重置並切到多筆匹配情境
 ./scripts/reset-demo.ps1 -Full        # 連主檔一起重新載入
 
-python scripts/scenario.py            # 看目前的供應商情境
-python scripts/scenario.py ambiguous  # 切到兩家勝宏科技
-python scripts/scenario.py unique     # 切回一家
+python scripts/scenario.py            # 看文件上印哪家廠商，以及 ERP 命中幾筆
+python scripts/scenario.py ambiguous  # 換成勝宏科技（命中 2 筆）
+python scripts/scenario.py unique     # 換回百辰光電（命中 1 筆）
 
 python scripts/run_task.py llm "處理今天 SCM 文件"   # 不開瀏覽器跑一次
 python scripts/probe_mcp.py list                      # 列出所有 MCP 工具

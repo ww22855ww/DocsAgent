@@ -291,7 +291,24 @@ Undoing this would spend thousands of tokens per step.
 runs them one at a time. Two concurrent runs move each other's files and fail
 with "not in staging".
 
-**Mock master data is real.** The suppliers and part numbers in `db/init.sql`
+**Supplier lookups go to the live ERP.** `DBQUERY_MODE=real` is the default;
+`mock` is a local copy of the same vendors kept only as an offline fallback. The
+demo is more convincing without it, and the scenario switch no longer needs it.
+
+**The scenario switch changes the document, not the database.**
+`scripts/scenario.py` regenerates quality_002.xlsx naming either 百辰光電, which
+matches exactly one vendor in EBS, or 勝宏科技, which matches the Huizhou and
+Thailand companies. Both outcomes come from real master data, so nothing is
+staged and the "is this rigged" question does not arise. 聯強國際 matches six
+records including `.聯強國際` and `*聯強國際`, which is the strongest available
+argument for not letting code pick one.
+
+**mock-portal's documents are bind-mounted.** `dotnet publish` bakes MockData
+into the image, so without the mount the portal serves whatever existed at build
+time and regenerating the files changes nothing. That silently broke the scenario
+switch once.
+
+**Historic note: mock master data is real.** The suppliers and part numbers in `db/init.sql`
 are Oracle EBS vendors with 2026 purchase orders at operating unit 152, and items
 actually bought from them. `DBQUERY_MODE=mock` and `DBQUERY_MODE=real` therefore
 answer the same questions the same way, so switching modes during the demo proves
@@ -330,6 +347,12 @@ The prompt therefore tells it to use file names and counts only, and
 favour of a generated one. Wrong vendor names in front of a procurement audience
 discredit everything else on the screen. Do not add a feature that has the model
 restate a name.
+
+**That rule covers free text too, not only tool arguments.** The manual-review
+reason is written by the model, and asked to name the candidates it produced
+涵星科技 for 勝宏科技. ToolRegistry now appends the real candidate list from the
+last lookup and the prompt tells the model not to write names at all. Anywhere
+the model composes prose about identifiers, assume it will corrupt them.
 
 **Never make the model retype an identifier it has already seen.** Asked to
 repeat a Chinese vendor name into a tool argument, gemma4 turned 勝宏科技 into

@@ -67,8 +67,10 @@ public sealed class LlmAgentRunner(
           one and the name when it does not. Do not give up on a document just
           because the code is missing.
         - If the search returns match "ambiguous" or "not_found", the mapping is
-          not settled: send the document to manual review, saying in the reason
-          how many candidates were found and what you searched for.
+          not settled: send the document to manual review. State the reason in
+          general terms - that the supplier could not be settled - and do NOT
+          write out vendor names or codes. The exact candidates are attached for
+          you.
         - Only a match of "unique" settles a mapping. Never pick one row out of
           an ambiguous result; deciding between them is the reviewer's job.
         - A part lookup that does not resolve is not a blocker. Archive the
@@ -268,7 +270,10 @@ public sealed class LlmAgentRunner(
             if (match == "ambiguous")
             {
                 var n = result["count"]?.GetValue<int>() ?? 0;
-                return ($"查到 {n} 家同名廠商，agent 沒有從中挑一個，改送人工複核", "win");
+                var names = (result["results"] as JsonArray ?? [])
+                    .Select(r => r?["supplier_name"]?.GetValue<string>())
+                    .Where(x => !string.IsNullOrWhiteSpace(x));
+                return ($"主檔命中 {n} 家（{string.Join("、", names)}），agent 沒有從中挑一個，改送人工複核", "win");
             }
         }
 
@@ -291,7 +296,11 @@ public sealed class LlmAgentRunner(
                 break;
             case "notify_manual_review":
                 outcome.Status = "manual_review";
-                outcome.ReviewReason = args["reason"]?.GetValue<string>();
+                // From the result, not the arguments: the arguments are what the
+                // model wrote, the result is what was recorded after the real
+                // candidate names were attached.
+                outcome.ReviewReason = result["reason"]?.GetValue<string>()
+                                    ?? args["reason"]?.GetValue<string>();
                 outcome.Notified = result["notified"]?.GetValue<bool>() ?? false;
                 break;
         }

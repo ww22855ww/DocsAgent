@@ -7,16 +7,16 @@
     the mock documents, and sets the supplier scenario back to the resolvable
     case. Run it before every rehearsal and before the meeting.
 
-    Master data is left alone unless -Full is given: mock_suppliers and
-    mock_parts hold real Oracle EBS vendors and reseeding them is only needed
-    after editing db/init.sql.
+    Supplier lookups go to the live ERP, so there is no master data to reset.
+    -Full reseeds the local fallback copy, which is only needed after editing
+    db/init.sql.
 
 .PARAMETER Full
     Also reseed the supplier and part master tables from db/init.sql.
 
 .PARAMETER Ambiguous
-    Leave the scenario in the ambiguous state (both 勝宏科技 entities enabled)
-    instead of resetting it to unique.
+    Name 勝宏科技 on the quality report, which matches two real vendors, instead
+    of 百辰光電, which matches one.
 
 .EXAMPLE
     ./scripts/reset-demo.ps1
@@ -89,9 +89,12 @@ try {
     Step "regenerated $count mock document(s)"
 
     # --- scenario -----------------------------------------------------------
+    # Regenerates quality_002.xlsx with the chosen vendor name, which is what
+    # decides whether the agent can resolve it against the live ERP.
     $target = if ($Ambiguous) { 'ambiguous' } else { 'unique' }
+    $env:PYTHONIOENCODING = 'utf-8'
     python (Join-Path $repo 'scripts/scenario.py') $target | Out-Null
-    Step "supplier scenario set to $target"
+    Step "quality report vendor set to the $target case"
 
     # --- confirm ------------------------------------------------------------
     Write-Host "`nReady." -ForegroundColor Green

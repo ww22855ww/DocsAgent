@@ -163,9 +163,21 @@ public sealed class ToolRegistry(
                 };
 
             case "notify_manual_review" when !string.IsNullOrWhiteSpace(filename):
+            {
                 var copy = args.DeepClone().AsObject();
                 copy["task_id"] = context.Task.Id;
+
+                // The model writes why, code supplies the identifiers. Asked to
+                // include candidate names itself it mistypes them, and a review
+                // reason naming a vendor that does not exist is worse than none.
+                var detail = context.UnresolvedSupplierDetail();
+                if (detail is not null)
+                {
+                    var reason = copy["reason"]?.GetValue<string>();
+                    copy["reason"] = string.IsNullOrWhiteSpace(reason) ? detail : $"{reason} {detail}";
+                }
                 return copy;
+            }
 
             // A lookup that names a document uses that document's own extracted
             // identifiers. Searching by code is tried first, since it is exact.

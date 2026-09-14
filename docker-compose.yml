@@ -28,6 +28,11 @@ services:
     restart: unless-stopped
     ports:
       - "5100:8080"
+    volumes:
+      # The demo documents are baked into the image by dotnet publish, so without
+      # this the portal keeps serving whatever existed at build time and
+      # regenerating them on the host changes nothing.
+      - ./mock-portal/MockData:/app/MockData:ro
     healthcheck:
       test: ["CMD-SHELL", "curl -fsS http://127.0.0.1:8080/health || exit 1"]
       interval: 10s
