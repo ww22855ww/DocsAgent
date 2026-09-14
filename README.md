@@ -8,8 +8,8 @@
 
 ![一次完整的 Agent 執行：下載、解析、分類、查主檔、歸檔與人工複核](docs/media/agent-run-fallback.gif)
 
-上面是一次真實執行的錄影（Agent 模式）。現場 demo 出狀況時，這個檔案就是備援：
-`docs/media/agent-run-fallback.gif`。
+上面是一次完整執行的錄影：Agent 模式、一句「處理今天 SCM 文件」，取得 4 份文件，
+3 份歸檔、1 份轉人工複核，全程 49 秒。現場 demo 出狀況時直接放它，`docs/media/agent-run-fallback.gif`。
 
 ---
 
