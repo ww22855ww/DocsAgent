@@ -533,7 +533,7 @@ svg .node-box { transition: opacity .25s ease; }
      down: postgres sits under frontend rather than under agent-api, which is
      what frees the channel agent-api needs to reach the LLM. */
   var NODES = {
-    browser:  { x: 42,  y: 24,  w: 150, h: 52, title: "瀏覽器",      sub: "React 主控台",     kind: "plain" },
+    browser:  { x: 42,  y: 24,  w: 150, h: 52, title: "瀏覽器",      sub: "使用者端，僅此一項",  kind: "plain" },
     frontend: { x: 42,  y: 136, w: 150, h: 64, title: "frontend",    sub: "nginx :5173",      kind: "do" },
     agentapi: { x: 264, y: 136, w: 150, h: 64, title: "agent-api",   sub: ".NET :5000",       kind: "mix" },
     worker:   { x: 486, y: 136, w: 150, h: 64, title: "mcp-worker",  sub: "Python :8000",     kind: "do" },
@@ -545,8 +545,8 @@ svg .node-box { transition: opacity .25s ease; }
   };
 
   var BANDS = [
-    { x: 24, y: 104, w: 852, h: 214, label: "Docker Host · 本次 demo 自建" },
-    { x: 24, y: 356, w: 852, h: 124, label: "公司內部既有服務 · 不在 demo 內" }
+    { x: 24, y: 104, w: 852, h: 214, label: "伺服器端 · 正式環境部署在這裡，使用者電腦不用裝任何東西" },
+    { x: 24, y: 356, w: 852, h: 124, label: "公司現有服務 · 已經在跑，這次沒有新增任何基礎設施" }
   ];
 
   /* Every edge carries explicit waypoints. Auto-routing kept putting labels on
@@ -889,6 +889,24 @@ svg .node-box { transition: opacity .25s ease; }
     },
 
     {
+      act: "架構",
+      fig: "正式環境",
+      arch: {
+        active: ["browser", "frontend", "agentapi", "worker", "postgres", "llm", "dbq", "mail"],
+        edges: ["browser>frontend"]
+      },
+      title: "正式上線後，誰的電腦要裝東西",
+      lede: "沒有人。使用者開瀏覽器就好，其餘全部部署在伺服器端，和現在打開任何一個內部系統沒有差別。",
+      points: [
+        { h: "這次 demo 是把整台系統塞進一台筆電", p: "為了方便展示，五個服務用容器跑在同一台機器上。這是展示的權宜做法，不是架構。" },
+        { h: "正式環境就是一般的 Web 系統", p: "前端、後端、工具服務、資料庫各自部署在伺服器。使用者不用安裝、不用設定、不用開任何背景程式。" },
+        { h: "自動操作也在伺服器上跑", p: "Playwright 開的是伺服器上的無頭瀏覽器，不會佔用使用者的畫面，也不需要使用者的電腦開著。" },
+        { h: "模擬入口網站會被換掉", p: "圖上的 mock-portal 是這次做的替身。接上去之後換成你們現有的內部網站，agent 和工具那層不用改。" }
+      ],
+      extra: '<div class="callout"><b>資料邊界：</b>分類時文件內容會送到公司內部的 LLM 服務，那是既有的內部系統。' +
+             '入口網站帳密、AD 密碼、資料庫密碼只存在工具服務裡，不會進到模型，也不會離開伺服器。</div>'
+    },
+    {
       act: "實際執行",
       fig: "取得文件",
       arch: {
@@ -902,7 +920,14 @@ svg .node-box { transition: opacity .25s ease; }
         { h: "接下來是純執行", p: "工具內部用 Playwright 登入、選單、填條件、查詢、逐份下載、搬進暫存區。模型看不到也管不著。" },
         { h: "重複呼叫是安全的", p: "暫存區已有同名檔案就略過，不會重抓。" }
       ],
-      extra: '<div class="callout decide">這裡有一個好對比：把任務改寫成「整理各家廠商回覆的碳排與勞權自評表」，完全沒有 ESG 這個詞。<b>關鍵字比對會抓錯分頁，模型讀得懂意思。</b></div>'
+      extra: '<div class="callout decide">把任務改寫成「整理各家廠商回覆的碳排與勞權自評表」，句子裡沒有 ESG 這個詞。' +
+             '<b>關鍵字比對會抓錯分頁，模型讀得懂意思。</b></div>' +
+             '<table class="cmp"><thead><tr><th>八種說法各測五次</th><th>關鍵字比對</th><th>Agent</th></tr></thead><tbody>' +
+             '<tr><td>直接寫出 ESG</td><td class="ok">對</td><td class="ok">對</td></tr>' +
+             '<tr><td>換成領域用語（碳排、溫室氣體）</td><td class="bad">3 句全錯</td><td class="ok">全對</td></tr>' +
+             '<tr><td>SCM 任務但提到「永續發展部」</td><td class="bad">誤送 ESG</td><td class="ok">對</td></tr>' +
+             '<tr><td>合計</td><td class="bad">3 / 8</td><td class="ok">8 / 8</td></tr>' +
+             '</tbody></table>'
     },
     {
       act: "實際執行",
@@ -915,7 +940,7 @@ svg .node-box { transition: opacity .25s ease; }
       lede: "四份文件一次解析成文字，然後逐份分類，抽出供應商、料號、單據號碼。",
       points: [
         { h: "分類刻意放在 agent-api，不做成工具", p: "這樣 JSON 格式、驗證、重試都在程式控制下。模型只負責判斷類別，程式負責檢查答案能不能用。" },
-        { h: "文件內容不會回傳給模型", p: "全文快取在後端，agent 只看到檔名和字數。這讓四份文件的處理維持在十幾步，而不是被文字塞爆。" },
+        { h: "文件內容不會回傳給模型", p: "全文快取在後端，agent 只看到檔名和字數。這讓整批文件的處理維持在十幾步，而不是被文字塞爆。" },
         { h: "分類是用結構判斷，不是用主題", p: "一封談到來料異常的信件，主題像品檢報告，但它沒有欄位也沒有單號，所以歸為 Unknown。" }
       ],
       extra: '<div class="callout warn">實測發現：模型自己回報的信心值幾乎都是 1.0，<b>包括它答錯那次</b>。所以要不要轉人工是規則說了算，信心值只是最後一道參考。</div>'

@@ -409,6 +409,18 @@ It is self-contained and needs nothing running, so it still works if the stack
 does not. Republish by passing that URL as `url` from any conversation, or the
 same file path from the one that published it.
 
+**Frame the architecture by deployment, not by Docker.** The audience does not
+use containers, so "Docker Host" reads to them as "something installs on my
+computer". The bands say 伺服器端 and 公司現有服務 instead, the browser node is
+labelled 使用者端·僅此一項, and step 7 exists to say outright that in production
+nothing runs on a user's machine but the browser. Keep that framing when editing:
+the Docker arrangement is a demo convenience, not the architecture.
+
+That step also carries the data boundary, which is the question the room asks
+next: document text does reach the internal LLM during classification; portal,
+AD and database credentials stay in mcp-worker and never enter a model prompt.
+Do not soften that into "the data stays local", which is not true.
+
 Two conventions hold it together. Colour encodes one idea everywhere: violet is
 a decision the model makes, teal is work deterministic code carries out, amber
 is a system we do not own. And architecture edges carry explicit waypoints
