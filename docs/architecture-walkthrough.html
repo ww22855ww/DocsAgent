@@ -1073,6 +1073,86 @@ svg .node-box { transition: opacity .25s ease; }
     return out;
   }
 
+  function pickFigure() {
+    var QX = 30, QW = 380, OX = 470, OW = 400, H = 64;
+    // Rows sit high enough that the last pair clears the canvas's own
+    // "滾輪縮放 · 拖曳平移" hint, which is an HTML overlay pinned to the
+    // bottom-left of the stage and will happily sit on top of a box.
+    var ROWS = [48, 134, 220, 306];
+    var SPINE = QX + QW / 2;
+
+    var out = '<g>';
+    out += '<text x="450" y="30" text-anchor="middle" font-size="15" font-weight="700">四個問題，決定你落在哪一層</text>';
+
+    function ask(y, t, sub) {
+      var g = '<rect x="' + QX + '" y="' + y + '" width="' + QW + '" height="' + H + '" rx="10" fill="var(--surface-sub)" stroke="var(--line)"/>';
+      g += '<text x="' + SPINE + '" y="' + (y + 27) + '" text-anchor="middle" font-size="13" font-weight="700">' + t + '</text>';
+      g += '<text x="' + SPINE + '" y="' + (y + 48) + '" text-anchor="middle" font-size="11.5" fill="var(--ink-2)">' + sub + '</text>';
+      return g;
+    }
+
+    function land(y, tone, t, sub) {
+      var soft = tone === "do" ? "var(--do-soft)" : tone === "decide" ? "var(--decide-soft)" : "var(--external-soft)";
+      var line = tone === "do" ? "var(--do)" : tone === "decide" ? "var(--decide)" : "var(--external)";
+      var g = '<rect x="' + OX + '" y="' + y + '" width="' + OW + '" height="' + H + '" rx="10" fill="' + soft + '" stroke="' + line + '"/>';
+      g += '<text x="' + (OX + OW / 2) + '" y="' + (y + 27) + '" text-anchor="middle" font-size="13" font-weight="700" fill="' + line + '">' + t + '</text>';
+      g += '<text x="' + (OX + OW / 2) + '" y="' + (y + 48) + '" text-anchor="middle" font-size="11.5" fill="var(--ink-2)">' + sub + '</text>';
+      return g;
+    }
+
+    // Each question exits right to an answer and drops to the next question.
+    function exit(y, label) {
+      var g = '<path d="M ' + (QX + QW) + ' ' + (y + H / 2) + ' L ' + (OX - 6) + ' ' + (y + H / 2) +
+              '" stroke="currentColor" stroke-width="1.5" marker-end="url(#ar)"/>';
+      g += '<text x="' + ((QX + QW + OX) / 2) + '" y="' + (y + H / 2 - 8) + '" text-anchor="middle" font-size="11.5" font-weight="700" fill="var(--ink-2)">' + label + '</text>';
+      return g;
+    }
+
+    function drop(y, next, label) {
+      var g = '<path d="M ' + SPINE + ' ' + (y + H) + ' L ' + SPINE + ' ' + (next - 6) +
+              '" stroke="currentColor" stroke-width="1.5" marker-end="url(#ar)"/>';
+      g += '<text x="' + (SPINE + 12) + '" y="' + (y + H + 18) + '" font-size="11.5" fill="var(--muted)">' + label + '</text>';
+      return g;
+    }
+
+    out += ask(ROWS[0], "對方有 API 或檔案交換嗎？", "先問這個，不要先想怎麼操作畫面");
+    out += exit(ROWS[0], "有");
+    out += land(ROWS[0], "do", "直接串 API", "最穩，也最沒有故事性");
+    out += drop(ROWS[0], ROWS[1], "沒有");
+
+    out += ask(ROWS[1], "能請對方在頁面加標記嗎？", "內部系統通常可以，一次談成永遠不壞");
+    out += exit(ROWS[1], "可以");
+    out += land(ROWS[1], "do", "固定 selector + data-testid", "比自我修復划算得多");
+    out += drop(ROWS[1], ROWS[2], "不行");
+
+    out += ask(ROWS[2], "頁面還有 DOM 可以定位嗎？", "role、label、表單結構都算");
+    out += exit(ROWS[2], "沒有");
+    out += land(ROWS[2], "ext", "Computer Use", "canvas、桌面程式、遠端桌面");
+    out += drop(ROWS[2], ROWS[3], "有");
+
+    out += ask(ROWS[3], "改版頻繁、停掉的代價高嗎？", "這才是真正的分界，不是內部或外部");
+
+    // The last question splits instead of exiting, because both answers are
+    // live options rather than one being a fallback.
+    var y2 = 386;
+    out += '<path d="M ' + SPINE + ' ' + (ROWS[3] + H) + ' L ' + SPINE + ' ' + (y2 - 6) +
+           '" stroke="currentColor" stroke-width="1.5" marker-end="url(#ar)"/>';
+    out += '<text x="' + (SPINE + 12) + '" y="' + (ROWS[3] + H + 18) + '" font-size="11.5" fill="var(--muted)">不會</text>';
+    out += '<path d="M ' + (QX + QW) + ' ' + (ROWS[3] + H / 2) + ' L ' + (OX + OW / 2) + ' ' + (ROWS[3] + H / 2) +
+           ' L ' + (OX + OW / 2) + ' ' + (y2 - 6) + '" fill="none" stroke="var(--decide)" stroke-width="1.5" marker-end="url(#ar-decide)"/>';
+    out += '<text x="' + ((QX + QW + OX) / 2) + '" y="' + (ROWS[3] + H / 2 - 8) + '" text-anchor="middle" font-size="11.5" font-weight="700" fill="var(--decide)">會</text>';
+
+    out += '<rect x="' + QX + '" y="' + y2 + '" width="' + QW + '" height="' + H + '" rx="10" fill="var(--do-soft)" stroke="var(--do)"/>';
+    out += '<text x="' + SPINE + '" y="' + (y2 + 27) + '" text-anchor="middle" font-size="13" font-weight="700" fill="var(--do)">語意 selector</text>';
+    out += '<text x="' + SPINE + '" y="' + (y2 + 48) + '" text-anchor="middle" font-size="11.5" fill="var(--ink-2)">本 demo 就停在這裡</text>';
+
+    out += '<rect x="' + OX + '" y="' + y2 + '" width="' + OW + '" height="' + H + '" rx="10" fill="var(--decide-soft)" stroke="var(--decide)"/>';
+    out += '<text x="' + (OX + OW / 2) + '" y="' + (y2 + 27) + '" text-anchor="middle" font-size="13" font-weight="700" fill="var(--decide)">讓模型修 selector</text>';
+    out += '<text x="' + (OX + OW / 2) + '" y="' + (y2 + 48) + '" text-anchor="middle" font-size="11.5" fill="var(--ink-2)">壞一次付一次，改完仍要人確認</text>';
+    out += '</g>';
+    return out;
+  }
+
   // =========================================================================
   // Steps
   // =========================================================================
@@ -1262,17 +1342,28 @@ svg .node-box { transition: opacity .25s ease; }
       act: "補充",
       fig: "操作網頁的選型",
       concept: automationFigure,
-      title: "補充：要操作網頁或視窗時，怎麼選",
-      lede: "這個 demo 用 Playwright 直接對 DOM 操作，selector 寫死在工具裡。合理的下一個問題是：目標網站改版怎麼辦？這一頁是 Q&A 用的補充，不在主線流程裡。",
+      title: "補充一：目標網站改版了怎麼辦",
+      lede: "這個 demo 用 Playwright 直接對 DOM 操作，selector 寫死在工具裡。合理的下一個問題就是改版怎麼辦。這兩頁是 Q&A 用的補充，不在主線流程裡。",
       points: [
         { h: "「DOM 走不通」和「寫死的 selector 走不通」是兩件事", p: "改版換掉 id、連顯示文字也改了，頁面上仍然有一棵完整的 accessibility tree，role、label、表單結構都還在。斷掉的是抄在程式裡的那個常數，不是定位這條路。" },
         { h: "所以中間還有一層，不是只有二選一", p: "把 DOM 丟給純文字模型，讓它挑出新的 selector 寫回設定檔，之後所有執行又回到最快那條路。壞一次付一次，不是每次都付。Computer Use 是第三層，不是第二層。" },
-        { h: "內部/外部不是真正的分界", p: "真正的變數是改版頻率、失敗成本，以及最關鍵的『能不能改到目標頁面』。內部系統可以請對方加上 data-testid，一次談成、永遠不壞，比蓋一套自我修復划算得多。" },
-        { h: "外部網站有兩個非技術的風險", p: "頁面文字會進到模型的 context，等於多了一個 prompt injection 的入口；而帳號密碼目前只存在 mcp-worker，改成讓模型逐步操作之後這條界線會很難維持。" }
+        { h: "而最便宜的一層是不必操作畫面", p: "圖上的第 0 層：先問有沒有 API，或能不能請對方在頁面加上 data-testid。內部系統通常兩者都做得到，做得到就不必走下面任何一層。" }
       ],
       extra: '<div class="callout decide"><b>核心概念：</b>永遠先問「這一步需要判斷嗎」。' +
-             '需要判斷的才往上疊模型，其餘的留在確定性程式裡——跟前一頁那條線是同一個原則，只是換到瀏覽器這一層。</div>' +
-             '<table class="cmp"><thead><tr><th>做法</th><th>適配場景</th><th>代價</th></tr></thead><tbody>' +
+             '需要判斷的才往上疊模型，其餘的留在確定性程式裡——跟前一頁那條線是同一個原則，只是換到瀏覽器這一層。</div>'
+    },
+    {
+      act: "補充",
+      fig: "怎麼選",
+      concept: pickFigure,
+      title: "補充二：怎麼選，以及各自的代價",
+      lede: "上一頁說明為什麼不是二選一，這一頁是實際要選的時候怎麼問。四個問題問完就會落在其中一層，下面那張表是各層的適用場景和代價。",
+      points: [
+        { h: "內部或外部不是真正的分界", p: "真正的變數是改版頻率、失敗成本，以及最關鍵的「能不能改到目標頁面」。能請對方加一個標記，就贏過蓋一套自我修復。" },
+        { h: "外部網站另外有兩個非技術風險", p: "頁面文字會進到模型的 context，等於多了一個 prompt injection 的入口；而帳號密碼目前只存在 mcp-worker，改成讓模型逐步操作之後，這條界線會很難維持。" },
+        { h: "不論落在哪一層，都要有每天一次的 smoke test", p: "讓改版在正式跑批之前就被人發現，而不是在跑批當下才炸開。這件事比選哪一層更決定它會不會在正式環境活下來。" }
+      ],
+      extra: '<table class="cmp"><thead><tr><th>做法</th><th>適配場景</th><th>代價</th></tr></thead><tbody>' +
              '<tr><td>系統 API / 檔案交換</td><td class="ok">對方有提供就一律優先</td><td>要申請、要對規格</td></tr>' +
              '<tr><td>固定 selector</td><td>自家系統，或能要求對方加 <code>data-testid</code></td><td>頁面改版就壞</td></tr>' +
              '<tr><td>語意 selector<br><code>get_by_role / get_by_label</code></td><td>內部系統、改版頻率低（本 demo 適用）</td><td>顯示文字改了才壞</td></tr>' +

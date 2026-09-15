@@ -501,7 +501,7 @@ system sound shaky. Keep them for Q&A.
 
 ## Presentation aid
 
-`docs/architecture-walkthrough.html` is an eleven-step interactive walkthrough
+`docs/architecture-walkthrough.html` is a thirteen-step interactive walkthrough
 used to explain the demo at the department meeting, published as an Artifact at
 https://claude.ai/code/artifact/04668997-0199-4a6f-b8ac-d3c15a2c51d9
 
@@ -584,6 +584,15 @@ only), that list stays in the message history, and the model picks the next
 unprocessed one each turn. This is the third time an overclaim about the prompt
 has had to be walked back. Check any new one against the prompt before writing
 it.
+
+**The web-automation supplement is two steps, and stays after 收斂.** One page
+carried both the argument (a broken selector is not a broken DOM, so there is a
+middle layer before Computer Use) and the five-row selection table, which is two
+talks in one slot. `automationFigure` keeps the argument — the cost ladder with
+layer 0 on top — and `pickFigure` opens the second page with the four questions
+that land you on a layer, with the table under it. Both are Q&A material and
+must not migrate into the main line; the room does not need them to follow the
+demo.
 
 **The two middle execution steps are one, not two.** 解析與分類 and 對應主檔 were
 separate pages narrating one straight line, and the lookup in particular is a
